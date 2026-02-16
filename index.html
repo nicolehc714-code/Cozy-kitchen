@@ -1,962 +1,127 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Cozy Kitchen — Rainy Night</title>
-  <style>
-    :root{
-      --bg0:#061225;
-      --bg1:#0b2a3e;
-      --glass:rgba(255,255,255,.08);
-      --glass2:rgba(255,255,255,.12);
-      --stroke:rgba(255,255,255,.14);
-      --text:rgba(255,255,255,.92);
-      --muted:rgba(255,255,255,.68);
-      --warm1:#ffd18a;
-      --warm2:#ff9f6e;
-      --shadow:rgba(0,0,0,.45);
-      --radius:18px;
-      --uiScale: 1;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%; margin:0; background:#030913; color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;}
-    body{display:flex; align-items:center; justify-content:center; padding:12px;}
-    .app{
-      width:min(980px, 100%);
-      height:min(760px, 100dvh - 24px);
-      position:relative;
-      border-radius:24px;
-      overflow:hidden;
-      background: radial-gradient(1200px 700px at 30% 15%, #153a58 0%, #081428 45%, #050b16 100%);
-      box-shadow: 0 22px 70px rgba(0,0,0,.55);
-      border: 1px solid rgba(255,255,255,.10);
-      isolation:isolate;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cozy Kitchen</title>
 
-    /* Scene layers */
-    .scene{position:absolute; inset:0;}
-    canvas{position:absolute; inset:0; width:100%; height:100%; display:block;}
-    #fx {mix-blend-mode:screen; opacity:.9;}
-    #rain {opacity:.85;}
-    #steam {opacity:.9;}
-    .vignette{
-      position:absolute; inset:0;
-      background:
-        radial-gradient(900px 600px at 50% 30%, rgba(0,0,0,0) 0%, rgba(0,0,0,.22) 55%, rgba(0,0,0,.55) 100%),
-        radial-gradient(900px 900px at 50% 110%, rgba(0,0,0,0) 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.65) 100%);
-      pointer-events:none;
-      z-index:9;
-    }
+<style>
+body {
+  margin:0;
+  height:100vh;
+  overflow:hidden;
+  background: linear-gradient(#0f172a,#0b1220);
+  font-family: Arial, sans-serif;
+}
 
-    /* Top cinematic bar */
-    .topbar{
-      position:absolute; left:16px; right:16px; top:14px;
-      display:flex; gap:10px; align-items:center; justify-content:space-between;
-      padding:10px 12px;
-      border-radius: 999px;
-      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
-      border: 1px solid rgba(255,255,255,.10);
-      backdrop-filter: blur(10px);
-      z-index: 20;
-    }
-    .brand{
-      display:flex; gap:10px; align-items:center;
-      letter-spacing:.18em;
-      text-transform:uppercase;
-      font-size:12px;
-      color: rgba(255,255,255,.75);
-      white-space:nowrap;
-    }
-    .pill{
-      display:flex; gap:10px; align-items:center;
-      padding:8px 12px;
-      border-radius: 999px;
-      background: rgba(0,0,0,.22);
-      border: 1px solid rgba(255,255,255,.10);
-      color: rgba(255,255,255,.85);
-      font-size:12px;
-    }
-    .timechip{opacity:.9}
+/* Rain */
+.rain {
+  position:fixed;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.08) 0px,
+    rgba(255,255,255,0.08) 2px,
+    transparent 2px,
+    transparent 20px
+  );
+  animation: rain 0.4s linear infinite;
+}
 
-    /* UI panel */
-    .hud{
-      position:absolute;
-      left:16px; right:16px; bottom:16px;
-      display:grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap:14px;
-      z-index: 30;
-    }
-    .card{
-      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: var(--radius);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 18px 45px rgba(0,0,0,.35);
-      overflow:hidden;
-    }
+@keyframes rain {
+  from { background-position:0 0; }
+  to { background-position:0 20px; }
+}
 
-    .leftCard{padding:14px;}
-    .orderRow{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:12px 12px;
-      background: rgba(0,0,0,.20);
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: 14px;
-      gap:12px;
-    }
-    .orderTitle{font-size:12px; color:rgba(255,255,255,.70); margin-bottom:2px}
-    .orderName{font-size:24px; font-weight:760; letter-spacing:.01em}
-    .orderHint{font-size:12px; color:rgba(255,255,255,.65)}
-    .orderIcon{
-      width:54px; height:54px; border-radius:14px;
-      display:grid; place-items:center;
-      background: radial-gradient(40px 40px at 30% 30%, rgba(255,255,255,.20), rgba(255,255,255,.06));
-      border: 1px solid rgba(255,255,255,.10);
-      font-size:28px;
-    }
-    .midRow{
-      display:grid; grid-template-columns: 1fr 1fr; gap:12px;
-      margin-top:12px;
-    }
-    .stat{
-      padding:10px 12px;
-      background: rgba(0,0,0,.18);
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: 14px;
-      display:flex; align-items:center; justify-content:space-between;
-      gap:10px;
-      font-size:13px;
-      color: rgba(255,255,255,.80);
-    }
-    .stat b{font-size:16px}
-    .dialogue{
-      margin-top:12px;
-      padding:12px;
-      border-radius: 14px;
-      background: rgba(0,0,0,.22);
-      border: 1px solid rgba(255,255,255,.10);
-      min-height: 60px;
-      display:flex; gap:10px; align-items:flex-start;
-    }
-    .nameTag{font-weight:800; color: var(--warm1);}
-    .quote{color: rgba(255,255,255,.86); font-style: italic; line-height:1.3}
-    .actions{
-      margin-top:12px;
-      display:grid; grid-template-columns: 1fr 1fr;
-      gap:12px;
-    }
-    button{
-      border:none;
-      cursor:pointer;
-      padding:14px 14px;
-      border-radius: 16px;
-      font-weight:850;
-      letter-spacing:.03em;
-      color: rgba(0,0,0,.80);
-      background: linear-gradient(180deg, var(--warm1), var(--warm2));
-      box-shadow: 0 12px 30px rgba(0,0,0,.35);
-      transition: transform .06s ease, filter .2s ease;
-      user-select:none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    button:active{transform: translateY(1px) scale(.99);}
-    .secondary{
-      background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.08));
-      color: rgba(255,255,255,.88);
-      border: 1px solid rgba(255,255,255,.12);
-      box-shadow: 0 12px 30px rgba(0,0,0,.25);
-    }
-    .lofiBtn{
-      margin-top:12px;
-      width:100%;
-      padding:12px 14px;
-      background: rgba(0,0,0,.28);
-      border: 1px solid rgba(255,255,255,.10);
-      color: rgba(255,255,255,.85);
-      border-radius: 16px;
-      display:flex; align-items:center; justify-content:center; gap:10px;
-      font-weight:750;
-    }
-    .dot{
-      width:10px; height:10px; border-radius:999px;
-      background: rgba(255,255,255,.25);
-      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
-    }
-    .dot.on{background: #7CFFB0; box-shadow: 0 0 0 3px rgba(124,255,176,.18), 0 0 16px rgba(124,255,176,.55);}
-    .hint{
-      font-size:12px; color: rgba(255,255,255,.60); text-align:center; margin-top:10px;
-    }
+/* Kitchen Scene */
+.kitchen {
+  position:absolute;
+  bottom:0;
+  width:100%;
+  height:70%;
+  background: #1e293b;
+  display:flex;
+  justify-content:center;
+  align-items:flex-end;
+}
 
-    /* Right “counter view” */
-    .rightCard{
-      padding:14px;
-      display:flex; flex-direction:column; gap:12px;
-    }
-    .meter{
-      display:grid; grid-template-columns: 1fr 1fr 1fr;
-      gap:10px;
-    }
-    .meter .stat{justify-content:space-between}
-    .mini{
-      padding:10px 12px;
-      border-radius: 14px;
-      background: rgba(0,0,0,.18);
-      border: 1px solid rgba(255,255,255,.10);
-    }
-    .miniTitle{font-size:12px; color:rgba(255,255,255,.70); margin-bottom:8px}
-    .progress{
-      height:10px; border-radius:999px;
-      background: rgba(255,255,255,.10);
-      overflow:hidden;
-      border:1px solid rgba(255,255,255,.10);
-    }
-    .bar{
-      height:100%;
-      width: 35%;
-      background: linear-gradient(90deg, rgba(255,209,138,.9), rgba(255,159,110,.95));
-      border-radius:999px;
-      box-shadow: 0 0 18px rgba(255,174,118,.30);
-    }
-    .toast{
-      position:absolute; left:50%; bottom:140px; transform:translateX(-50%);
-      padding:10px 12px;
-      border-radius: 999px;
-      background: rgba(0,0,0,.35);
-      border: 1px solid rgba(255,255,255,.12);
-      color: rgba(255,255,255,.90);
-      font-size:13px;
-      opacity:0;
-      transition: opacity .25s ease, transform .25s ease;
-      z-index: 40;
-      pointer-events:none;
-    }
-    .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+/* Counter */
+.counter {
+  width:80%;
+  height:120px;
+  background:#334155;
+  border-radius:20px 20px 0 0;
+  position:relative;
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+}
 
-    @media (max-width: 760px){
-      .hud{grid-template-columns: 1fr; }
-    }
-  </style>
+/* Character */
+.chef {
+  font-size:80px;
+  animation: bob 2s ease-in-out infinite;
+}
+
+@keyframes bob {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+/* Pot */
+.pot {
+  font-size:60px;
+  position:relative;
+}
+
+.steam {
+  position:absolute;
+  top:-30px;
+  left:20px;
+  font-size:30px;
+  opacity:0.7;
+  animation: steam 2s infinite;
+}
+
+@keyframes steam {
+  0% { transform: translateY(0); opacity:0.7; }
+  100% { transform: translateY(-20px); opacity:0; }
+}
+
+/* Chopping */
+.chop-area {
+  font-size:60px;
+  cursor:pointer;
+  transition: transform 0.1s;
+}
+
+.chop-area:active {
+  transform: rotate(-10deg);
+}
+</style>
 </head>
+
 <body>
-  <div class="app" id="app">
-    <div class="scene">
-      <canvas id="bg"></canvas>
-      <canvas id="rain"></canvas>
-      <canvas id="steam"></canvas>
-      <canvas id="fx"></canvas>
-      <div class="vignette"></div>
+
+<div class="rain"></div>
+
+<div class="kitchen">
+  <div class="counter">
+
+    <div class="chef">👩‍🍳</div>
+
+    <div class="pot">
+      🍲
+      <div class="steam">💨</div>
     </div>
 
-    <div class="topbar">
-      <div class="brand">COZY KITCHEN • OPEN LATE • RAINY NIGHT</div>
-      <div class="pill timechip" id="clock">12:00 AM</div>
-    </div>
+    <div class="chop-area">🔪</div>
 
-    <div class="hud">
-      <div class="card leftCard">
-        <div class="orderRow">
-          <div>
-            <div class="orderTitle">Order</div>
-            <div class="orderName" id="orderName">Mushroom × 1</div>
-            <div class="orderHint" id="orderHint">Last one. Make it nice.</div>
-          </div>
-          <div class="orderIcon" id="orderIcon">🍄</div>
-        </div>
-
-        <div class="midRow">
-          <div class="stat"><span>Warmth</span><b id="warmth">0</b></div>
-          <div class="stat"><span>Tips</span><b id="tips">0</b></div>
-        </div>
-
-        <div class="dialogue">
-          <div class="nameTag" id="npcName">Mara</div>
-          <div class="quote" id="npcLine">“The rain sounds softer from inside.”</div>
-        </div>
-
-        <div class="actions">
-          <button id="chopBtn">CHOP</button>
-          <button class="secondary" id="serveBtn">SERVE</button>
-        </div>
-
-        <button class="lofiBtn" id="lofiBtn" aria-label="Toggle lo-fi">
-          <span class="dot" id="lofiDot"></span>
-          <span id="lofiLabel">Lo-fi (tap to enable)</span>
-        </button>
-
-        <div class="hint" id="hint">Tip: chop to build rhythm → serve when the pot is steaming.</div>
-      </div>
-
-      <div class="card rightCard">
-        <div class="meter">
-          <div class="stat"><span>Streak</span><b id="streak">0</b></div>
-          <div class="stat"><span>Calm</span><b id="calm">100</b></div>
-          <div class="stat"><span>Night</span><b id="night">1</b></div>
-        </div>
-
-        <div class="mini">
-          <div class="miniTitle">Pot Heat</div>
-          <div class="progress"><div class="bar" id="heatBar"></div></div>
-        </div>
-
-        <div class="mini">
-          <div class="miniTitle">Chop Rhythm</div>
-          <div class="progress"><div class="bar" id="rhythmBar" style="width: 0%"></div></div>
-        </div>
-
-        <div class="mini">
-          <div class="miniTitle">Mood</div>
-          <div style="font-size:13px;color:rgba(255,255,255,.80);line-height:1.35" id="moodText">
-            The kitchen is quiet. Only the window knows the storm.
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="toast" id="toast">Saved.</div>
   </div>
+</div>
 
-<script>
-(() => {
-  // ---------- State ----------
-  const state = {
-    warmth: 0,
-    tips: 0,
-    streak: 0,
-    calm: 100,
-    night: 1,
-    heat: 0.35,   // 0..1
-    rhythm: 0,    // 0..1
-    lastChop: 0,
-    lofiOn: false,
-    t: 0,
-    orderIndex: 0,
-  };
-
-  const orders = [
-    { name:"Mushroom × 1", icon:"🍄", hint:"Last one. Make it nice." },
-    { name:"Tomato × 3", icon:"🍅", hint:"Keep your rhythm." },
-    { name:"Garlic × 2", icon:"🧄", hint:"Quiet hands, sharp blade." },
-    { name:"Onion × 1", icon:"🧅", hint:"Slow is smooth." },
-    { name:"Carrot × 2", icon:"🥕", hint:"Warmth sells." },
-  ];
-
-  const lines = [
-    "“The rain sounds softer from inside.”",
-    "“I like late shifts. No small talk.”",
-    "“Steam means we’re alive.”",
-    "“Don’t rush. The kitchen remembers.”",
-    "“Some nights the stove is the only friend.”"
-  ];
-
-  const $ = (id) => document.getElementById(id);
-  const ui = {
-    warmth: $("warmth"),
-    tips: $("tips"),
-    streak: $("streak"),
-    calm: $("calm"),
-    night: $("night"),
-    orderName: $("orderName"),
-    orderHint: $("orderHint"),
-    orderIcon: $("orderIcon"),
-    npcName: $("npcName"),
-    npcLine: $("npcLine"),
-    heatBar: $("heatBar"),
-    rhythmBar: $("rhythmBar"),
-    moodText: $("moodText"),
-    toast: $("toast"),
-    clock: $("clock"),
-    chopBtn: $("chopBtn"),
-    serveBtn: $("serveBtn"),
-    lofiBtn: $("lofiBtn"),
-    lofiDot: $("lofiDot"),
-    lofiLabel: $("lofiLabel"),
-    hint: $("hint"),
-  };
-
-  function toast(msg){
-    ui.toast.textContent = msg;
-    ui.toast.classList.add("show");
-    clearTimeout(toast._t);
-    toast._t = setTimeout(()=>ui.toast.classList.remove("show"), 1400);
-  }
-
-  function setOrder(i){
-    const o = orders[i % orders.length];
-    ui.orderName.textContent = o.name;
-    ui.orderHint.textContent = o.hint;
-    ui.orderIcon.textContent = o.icon;
-    ui.npcName.textContent = "Mara";
-    ui.npcLine.textContent = lines[i % lines.length];
-  }
-
-  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
-
-  function updateUI(){
-    ui.warmth.textContent = state.warmth;
-    ui.tips.textContent = state.tips;
-    ui.streak.textContent = state.streak;
-    ui.calm.textContent = Math.round(state.calm);
-    ui.night.textContent = state.night;
-
-    ui.heatBar.style.width = `${Math.round(state.heat*100)}%`;
-    ui.rhythmBar.style.width = `${Math.round(state.rhythm*100)}%`;
-
-    const mood =
-      state.calm > 70 ? "The kitchen is quiet. Only the window knows the storm." :
-      state.calm > 40 ? "Your hands are steady, but the night is loud." :
-      "Breath shallow. Focus on one chop at a time.";
-    ui.moodText.textContent = mood;
-
-    // Clock drift
-    const minutes = (state.t * 2) % 60;
-    const hour = 12 + Math.floor((state.t*2)/60)%2; // just vibes
-    const hh = ((hour-1)%12)+1;
-    const mm = String(Math.floor(minutes)).padStart(2,"0");
-    ui.clock.textContent = `${hh}:${mm} AM`;
-  }
-
-  // ---------- Canvas setup ----------
-  const bg = $("bg"), rain = $("rain"), steam = $("steam"), fx = $("fx");
-  const ctxBg = bg.getContext("2d");
-  const ctxRain = rain.getContext("2d");
-  const ctxSteam = steam.getContext("2d");
-  const ctxFx = fx.getContext("2d");
-
-  function resize(){
-    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-    const rect = bg.getBoundingClientRect();
-    [bg, rain, steam, fx].forEach(c => {
-      c.width = Math.floor(rect.width * dpr);
-      c.height = Math.floor(rect.height * dpr);
-      c._dpr = dpr;
-    });
-  }
-  window.addEventListener("resize", resize, {passive:true});
-  resize();
-
-  // ---------- Draw helpers ----------
-  function roundRect(ctx,x,y,w,h,r){
-    ctx.beginPath();
-    ctx.moveTo(x+r, y);
-    ctx.arcTo(x+w, y, x+w, y+h, r);
-    ctx.arcTo(x+w, y+h, x, y+h, r);
-    ctx.arcTo(x, y+h, x, y, r);
-    ctx.arcTo(x, y, x+w, y, r);
-    ctx.closePath();
-  }
-
-  function drawKitchenBase(){
-    const dpr = bg._dpr;
-    const W = bg.width, H = bg.height;
-
-    ctxBg.clearRect(0,0,W,H);
-
-    // Base gradient
-    const g = ctxBg.createLinearGradient(0,0,0,H);
-    g.addColorStop(0, "#0b2740");
-    g.addColorStop(0.55, "#071328");
-    g.addColorStop(1, "#040a14");
-    ctxBg.fillStyle = g;
-    ctxBg.fillRect(0,0,W,H);
-
-    // Window glow area
-    const winX = W*0.08, winY=H*0.12, winW=W*0.36, winH=H*0.46;
-    ctxBg.save();
-    const wG = ctxBg.createRadialGradient(winX+winW*0.5, winY+winH*0.35, 20, winX+winW*0.5, winY+winH*0.35, winW*0.9);
-    wG.addColorStop(0, "rgba(120,190,255,0.18)");
-    wG.addColorStop(1, "rgba(0,0,0,0)");
-    ctxBg.fillStyle = wG;
-    ctxBg.fillRect(winX-60, winY-60, winW+120, winH+120);
-    ctxBg.restore();
-
-    // Window frame
-    ctxBg.save();
-    ctxBg.fillStyle = "rgba(255,255,255,0.06)";
-    ctxBg.strokeStyle = "rgba(255,255,255,0.12)";
-    ctxBg.lineWidth = 2*dpr;
-    roundRect(ctxBg, winX, winY, winW, winH, 18*dpr);
-    ctxBg.fill(); ctxBg.stroke();
-
-    // Window panes
-    ctxBg.beginPath();
-    ctxBg.moveTo(winX+winW*0.5, winY);
-    ctxBg.lineTo(winX+winW*0.5, winY+winH);
-    ctxBg.moveTo(winX, winY+winH*0.5);
-    ctxBg.lineTo(winX+winW, winY+winH*0.5);
-    ctxBg.strokeStyle = "rgba(255,255,255,0.10)";
-    ctxBg.lineWidth = 2*dpr;
-    ctxBg.stroke();
-    ctxBg.restore();
-
-    // Warm pendant lights
-    for(let i=0;i<3;i++){
-      const lx = W*(0.52 + i*0.14);
-      const ly = H*0.09;
-      ctxBg.strokeStyle = "rgba(255,255,255,0.12)";
-      ctxBg.lineWidth = 2*dpr;
-      ctxBg.beginPath();
-      ctxBg.moveTo(lx, 0);
-      ctxBg.lineTo(lx, ly);
-      ctxBg.stroke();
-
-      const glow = ctxBg.createRadialGradient(lx, ly+18*dpr, 10, lx, ly+18*dpr, 130*dpr);
-      glow.addColorStop(0,"rgba(255,209,138,0.28)");
-      glow.addColorStop(1,"rgba(255,209,138,0)");
-      ctxBg.fillStyle = glow;
-      ctxBg.fillRect(lx-140*dpr, ly-40*dpr, 280*dpr, 260*dpr);
-
-      ctxBg.fillStyle = "rgba(255,209,138,0.22)";
-      ctxBg.strokeStyle = "rgba(255,255,255,0.12)";
-      ctxBg.lineWidth = 2*dpr;
-      roundRect(ctxBg, lx-18*dpr, ly, 36*dpr, 28*dpr, 10*dpr);
-      ctxBg.fill(); ctxBg.stroke();
-    }
-
-    // Counter / table
-    const counterY = H*0.62;
-    const cg = ctxBg.createLinearGradient(0,counterY,0,H);
-    cg.addColorStop(0,"rgba(0,0,0,0)");
-    cg.addColorStop(1,"rgba(0,0,0,0.55)");
-    ctxBg.fillStyle = cg;
-    ctxBg.fillRect(0,counterY, W, H-counterY);
-
-    ctxBg.fillStyle = "rgba(255,255,255,0.06)";
-    ctxBg.strokeStyle = "rgba(255,255,255,0.10)";
-    ctxBg.lineWidth = 2*dpr;
-    roundRect(ctxBg, W*0.06, H*0.58, W*0.88, H*0.36, 22*dpr);
-    ctxBg.fill(); ctxBg.stroke();
-
-    // Cutting board
-    const bx=W*0.52, by=H*0.67, bw=W*0.28, bh=H*0.12;
-    ctxBg.fillStyle = "rgba(255,209,138,0.12)";
-    ctxBg.strokeStyle = "rgba(255,255,255,0.12)";
-    ctxBg.lineWidth = 2*dpr;
-    roundRect(ctxBg, bx, by, bw, bh, 18*dpr);
-    ctxBg.fill(); ctxBg.stroke();
-
-    // Pot (base)
-    const px=W*0.23, py=H*0.68;
-    ctxBg.save();
-    ctxBg.fillStyle = "rgba(255,255,255,0.10)";
-    ctxBg.strokeStyle = "rgba(255,255,255,0.16)";
-    ctxBg.lineWidth = 2*dpr;
-    roundRect(ctxBg, px, py, W*0.20, H*0.12, 18*dpr);
-    ctxBg.fill(); ctxBg.stroke();
-    // Lid
-    roundRect(ctxBg, px+W*0.03, py-H*0.03, W*0.14, H*0.05, 16*dpr);
-    ctxBg.fill(); ctxBg.stroke();
-    // Knob
-    ctxBg.beginPath();
-    ctxBg.arc(px+W*0.10, py-H*0.03, 8*dpr, 0, Math.PI*2);
-    ctxBg.fillStyle = "rgba(255,209,138,0.16)";
-    ctxBg.fill();
-    ctxBg.restore();
-
-    // Chef station “spotlight”
-    const spot = ctxBg.createRadialGradient(W*0.62, H*0.72, 20, W*0.62, H*0.72, 320*dpr);
-    spot.addColorStop(0,"rgba(255,209,138,0.14)");
-    spot.addColorStop(1,"rgba(255,209,138,0)");
-    ctxBg.fillStyle = spot;
-    ctxBg.fillRect(W*0.28, H*0.40, W*0.70, H*0.60);
-  }
-
-  // Pixel chef sprite (simple but not emoji)
-  function drawChef(ctx, x, y, s, chopPhase){
-    // 16x16 pixel map, scale by s
-    const pixels = [
-      "....wwww....ww..",
-      "...wwwwww..wwww.",
-      "...wwwwww..wwww.",
-      "....wwww....ww..",
-      ".....ss......ss.",
-      "....ssss....ssss",
-      "...ssssss..ssss.",
-      "...ssssss..ssss.",
-      "....tttttttttt..",
-      "....ttt....ttt..",
-      "...ttt......ttt.",
-      "..ttt........ttt",
-      "..bb..........bb",
-      ".bbbb........bbbb",
-      ".bbbb........bbbb",
-      "..bb..........bb"
-    ];
-    const colors = {
-      w: "rgba(255,255,255,0.90)",    // hat
-      s: "rgba(255,220,180,0.92)",    // skin
-      t: "rgba(255,255,255,0.72)",    // coat
-      b: "rgba(25,25,30,0.85)",       // pants/shoes
-      ".": null
-    };
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.imageSmoothingEnabled = false;
-
-    // Slight bob
-    const bob = Math.sin(chopPhase*2*Math.PI)*2*s;
-    ctx.translate(0, bob);
-
-    // body
-    for(let r=0;r<pixels.length;r++){
-      for(let c=0;c<pixels[r].length;c++){
-        const ch = pixels[r][c];
-        const col = colors[ch];
-        if(!col) continue;
-        ctx.fillStyle = col;
-        ctx.fillRect(c*s, r*s, s, s);
-      }
-    }
-
-    // arm + knife “chop” (animated)
-    const armX = 12*s, armY = 10*s;
-    const swing = Math.sin(chopPhase*2*Math.PI)*0.9;
-    ctx.save();
-    ctx.translate(armX, armY);
-    ctx.rotate(-0.6 + swing*0.7);
-    ctx.fillStyle = "rgba(255,220,180,0.92)";
-    ctx.fillRect(0,0, 2*s, 4*s);
-    ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.fillRect(2*s, 1.2*s, 5*s, 0.8*s);
-    ctx.restore();
-
-    ctx.restore();
-  }
-
-  // Rain particles
-  const drops = [];
-  function initRain(){
-    drops.length = 0;
-    const W=rain.width, H=rain.height;
-    const N = Math.floor((W*H)/70000);
-    for(let i=0;i<N;i++){
-      drops.push({
-        x: Math.random()*W,
-        y: Math.random()*H,
-        z: Math.random()*1,
-        v: 6 + Math.random()*10,
-        l: 12 + Math.random()*18
-      });
-    }
-  }
-  initRain();
-  window.addEventListener("resize", initRain, {passive:true});
-
-  function drawRain(dt){
-    const W=rain.width, H=rain.height, dpr=rain._dpr;
-    ctxRain.clearRect(0,0,W,H);
-
-    // subtle diagonal sheets
-    ctxRain.save();
-    ctxRain.globalAlpha = 0.25;
-    ctxRain.fillStyle = "rgba(160,210,255,0.10)";
-    for(let i=0;i<8;i++){
-      ctxRain.fillRect((i*W/7) - (state.t*40)%200, 0, 60*dpr, H);
-    }
-    ctxRain.restore();
-
-    ctxRain.strokeStyle = "rgba(190,230,255,0.35)";
-    ctxRain.lineWidth = 1*dpr;
-    ctxRain.lineCap = "round";
-
-    for(const d of drops){
-      d.y += d.v * (1.2 + d.z) * dt;
-      d.x -= (2.5 + d.z*3) * dt * 60;
-      if(d.y > H + 40) { d.y = -40; d.x = Math.random()*W; }
-      if(d.x < -40) { d.x = W + 40; }
-
-      const len = d.l * (1.0 + d.z);
-      ctxRain.globalAlpha = 0.18 + d.z*0.25;
-      ctxRain.beginPath();
-      ctxRain.moveTo(d.x, d.y);
-      ctxRain.lineTo(d.x - 10*dpr, d.y + len);
-      ctxRain.stroke();
-    }
-  }
-
-  // Steam puffs
-  const puffs = [];
-  function spawnPuff(){
-    const W=steam.width, H=steam.height;
-    puffs.push({
-      x: W*0.33 + (Math.random()-0.5)*40*steam._dpr,
-      y: H*0.66,
-      r: 10*steam._dpr + Math.random()*18*steam._dpr,
-      a: 0.0,
-      life: 2.5 + Math.random()*1.8,
-      vx: (Math.random()-0.5)*14*steam._dpr,
-      vy: - (22 + Math.random()*18)*steam._dpr
-    });
-  }
-
-  function drawSteam(dt){
-    const W=steam.width, H=steam.height;
-    ctxSteam.clearRect(0,0,W,H);
-
-    // spawn based on heat
-    const spawnRate = 0.2 + state.heat*0.9;
-    if(Math.random() < spawnRate * dt * 2.2){
-      spawnPuff();
-    }
-
-    for(let i=puffs.length-1;i>=0;i--){
-      const p=puffs[i];
-      p.a += dt;
-      const t = p.a / p.life;
-      if(t>=1){ puffs.splice(i,1); continue; }
-      p.x += p.vx*dt;
-      p.y += p.vy*dt;
-      const alpha = (1 - t) * 0.20 * (0.6 + state.heat);
-      ctxSteam.fillStyle = `rgba(220,240,255,${alpha})`;
-      ctxSteam.beginPath();
-      ctxSteam.ellipse(p.x, p.y, p.r*(1+t*1.2), p.r*(1+t*1.5), 0, 0, Math.PI*2);
-      ctxSteam.fill();
-    }
-  }
-
-  // FX layer: sparks + chop flash + subtle film grain
-  const sparks = [];
-  function addSpark(x,y){
-    const W=fx.width, H=fx.height;
-    for(let i=0;i<10;i++){
-      sparks.push({
-        x, y,
-        vx:(Math.random()-0.5)*260*fx._dpr,
-        vy:(-Math.random())*320*fx._dpr,
-        a:0,
-        life:0.45+Math.random()*0.25
-      });
-    }
-  }
-
-  function drawFX(dt){
-    const W=fx.width, H=fx.height;
-    ctxFx.clearRect(0,0,W,H);
-
-    // sparks
-    for(let i=sparks.length-1;i>=0;i--){
-      const s=sparks[i];
-      s.a += dt;
-      const t=s.a/s.life;
-      if(t>=1){ sparks.splice(i,1); continue; }
-      s.x += s.vx*dt; s.y += s.vy*dt;
-      s.vy += 420*fx._dpr*dt;
-      ctxFx.globalAlpha = (1-t)*0.85;
-      ctxFx.fillStyle = "rgba(255,209,138,0.85)";
-      ctxFx.fillRect(s.x, s.y, 2*fx._dpr, 2*fx._dpr);
-    }
-    ctxFx.globalAlpha = 1;
-
-    // film grain (light)
-    ctxFx.globalAlpha = 0.06;
-    for(let i=0;i<140;i++){
-      const gx = Math.random()*W;
-      const gy = Math.random()*H;
-      ctxFx.fillStyle = `rgba(255,255,255,${Math.random()*0.6})`;
-      ctxFx.fillRect(gx, gy, 1*fx._dpr, 1*fx._dpr);
-    }
-    ctxFx.globalAlpha = 1;
-  }
-
-  // ---------- Main animation loop ----------
-  let last = performance.now();
-  let chopPhase = 0;
-  function tick(now){
-    const dt = Math.min(0.033, (now-last)/1000);
-    last = now;
-    state.t += dt;
-
-    // slow heat drift
-    state.heat = clamp(state.heat + (Math.sin(state.t*0.6)*0.003) + 0.002*dt, 0.12, 1);
-
-    // calm decays slightly; recovers with good rhythm
-    state.calm = clamp(state.calm - (0.7*dt) + (state.rhythm*1.2*dt), 0, 100);
-
-    // rhythm decays
-    state.rhythm = clamp(state.rhythm - 0.25*dt, 0, 1);
-
-    // Scene draw
-    drawKitchenBase();
-
-    // draw chef near board
-    const W=bg.width, H=bg.height;
-    chopPhase = (chopPhase + dt*(1.2 + state.rhythm*4)) % 1;
-    drawChef(ctxBg, W*0.62, H*0.60, 4*bg._dpr, chopPhase);
-
-    drawRain(dt);
-    drawSteam(dt);
-    drawFX(dt);
-
-    updateUI();
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-
-  // ---------- Gameplay ----------
-  function doChop(){
-    const now = performance.now();
-    const delta = now - state.lastChop;
-    state.lastChop = now;
-
-    // rhythm rewards ~450ms to ~700ms taps
-    const target = 560;
-    const score = Math.max(0, 1 - Math.abs(delta - target)/target);
-    state.rhythm = clamp(state.rhythm + score*0.28 + 0.10, 0, 1);
-
-    // warmth grows with rhythm
-    state.warmth += Math.round(1 + state.rhythm*2);
-    state.streak += 1;
-
-    // sparks at board
-    addSpark(fx.width*0.70, fx.height*0.74);
-
-    // tiny text feedback
-    if(score > 0.75) toast("Nice rhythm.");
-    else if(score > 0.45) toast("Good.");
-    else toast("Too fast / too slow.");
-  }
-
-  function doServe(){
-    // need enough heat + some rhythm
-    const ok = state.heat > 0.45 && state.rhythm > 0.25;
-    if(!ok){
-      state.streak = Math.max(0, state.streak-1);
-      toast("Not ready. Let it simmer.");
-      ui.npcLine.textContent = "“Let it breathe a second.”";
-      return;
-    }
-    const tip = Math.round(2 + state.rhythm*8 + state.heat*6);
-    state.tips += tip;
-    state.warmth += Math.round(3 + state.heat*4);
-    state.calm = clamp(state.calm + 6, 0, 100);
-
-    toast(`Served. +$${tip}`);
-    ui.npcLine.textContent = "“Perfect. Quietly perfect.”";
-
-    state.orderIndex++;
-    if(state.orderIndex % 3 === 0){
-      state.night++;
-      toast("A new night begins.");
-    }
-    setOrder(state.orderIndex);
-
-    // reset rhythm a bit so it feels like a new task
-    state.rhythm = clamp(state.rhythm*0.35, 0, 1);
-  }
-
-  ui.chopBtn.addEventListener("click", doChop);
-  ui.serveBtn.addEventListener("click", doServe);
-
-  // ---------- Lo-fi (WebAudio) ----------
-  let audio = null;
-  function startLofi(){
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC) { toast("Audio not supported."); return; }
-    if(!audio){
-      const ctx = new AC();
-      const master = ctx.createGain();
-      master.gain.value = 0.0;
-      master.connect(ctx.destination);
-
-      // soft pad (sine)
-      const pad = ctx.createOscillator();
-      pad.type = "sine";
-      pad.frequency.value = 196; // G3
-      const padGain = ctx.createGain();
-      padGain.gain.value = 0.06;
-      pad.connect(padGain).connect(master);
-      pad.start();
-
-      // mellow chords (triangle)
-      const chord = ctx.createOscillator();
-      chord.type = "triangle";
-      chord.frequency.value = 246.94; // B3
-      const chordGain = ctx.createGain();
-      chordGain.gain.value = 0.035;
-      chord.connect(chordGain).connect(master);
-      chord.start();
-
-      // gentle noise (vinyl)
-      const buf = ctx.createBuffer(1, ctx.sampleRate*2, ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * 0.25;
-      const noise = ctx.createBufferSource();
-      noise.buffer = buf;
-      noise.loop = true;
-      const noiseFilter = ctx.createBiquadFilter();
-      noiseFilter.type = "lowpass";
-      noiseFilter.frequency.value = 900;
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.value = 0.02;
-      noise.connect(noiseFilter).connect(noiseGain).connect(master);
-      noise.start();
-
-      // simple “kick” using a short pitch drop
-      const kickGain = ctx.createGain();
-      kickGain.gain.value = 0.10;
-      kickGain.connect(master);
-
-      function kick(){
-        const o = ctx.createOscillator();
-        o.type = "sine";
-        const g = ctx.createGain();
-        o.connect(g).connect(kickGain);
-        const t = ctx.currentTime;
-        o.frequency.setValueAtTime(120, t);
-        o.frequency.exponentialRampToValueAtTime(40, t+0.08);
-        g.gain.setValueAtTime(0.0, t);
-        g.gain.linearRampToValueAtTime(1.0, t+0.01);
-        g.gain.exponentialRampToValueAtTime(0.001, t+0.18);
-        o.start(t);
-        o.stop(t+0.2);
-      }
-
-      // tempo loop
-      let timer = null;
-      function loop(){
-        kick();
-        // drift chord
-        chord.frequency.value = 246.94 + Math.sin(ctx.currentTime*0.35)*2.0;
-        pad.frequency.value = 196 + Math.sin(ctx.currentTime*0.22)*1.4;
-        timer = setTimeout(loop, 750); // ~80 bpm
-      }
-      loop();
-
-      audio = { ctx, master, loopTimer: () => timer, stopLoop: () => clearTimeout(timer) };
-    }
-
-    // resume context (required on iOS)
-    audio.ctx.resume?.();
-    // fade in
-    audio.master.gain.cancelScheduledValues(audio.ctx.currentTime);
-    audio.master.gain.linearRampToValueAtTime(0.22, audio.ctx.currentTime + 0.2);
-    state.lofiOn = true;
-
-    ui.lofiDot.classList.add("on");
-    ui.lofiLabel.textContent = "Lo-fi (on)";
-    toast("Lo-fi enabled.");
-  }
-
-  function stopLofi(){
-    if(!audio) return;
-    audio.master.gain.cancelScheduledValues(audio.ctx.currentTime);
-    audio.master.gain.linearRampToValueAtTime(0.0, audio.ctx.currentTime + 0.15);
-    state.lofiOn = false;
-    ui.lofiDot.classList.remove("on");
-    ui.lofiLabel.textContent = "Lo-fi (tap to enable)";
-    toast("Lo-fi off.");
-  }
-
-  ui.lofiBtn.addEventListener("click", () => {
-    if(!state.lofiOn) startLofi();
-    else stopLofi();
-  });
-
-  // Init
-  setOrder(0);
-  updateUI();
-})();
-</script>
 </body>
 </html>
