@@ -2,888 +2,961 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Cozy Kitchen — Rainy Night</title>
   <style>
     :root{
-      --bg0:#061a2a;
+      --bg0:#061225;
       --bg1:#0b2a3e;
-      --warm:#ffcc7a;
-      --warm2:#ff8a5b;
-      --glass: rgba(255,255,255,.08);
-      --glass2: rgba(255,255,255,.12);
-      --stroke: rgba(255,255,255,.14);
-      --text: rgba(255,255,255,.92);
-      --muted: rgba(255,255,255,.68);
-      --shadow: rgba(0,0,0,.42);
-      --radius: 20px;
-      --pad: 14px;
-      --warmth: 0; /* updated in JS */
+      --glass:rgba(255,255,255,.08);
+      --glass2:rgba(255,255,255,.12);
+      --stroke:rgba(255,255,255,.14);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.68);
+      --warm1:#ffd18a;
+      --warm2:#ff9f6e;
+      --shadow:rgba(0,0,0,.45);
+      --radius:18px;
+      --uiScale: 1;
     }
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Color Emoji", "Apple Color Emoji";
-      color: var(--text);
-      background: radial-gradient(1200px 700px at 50% 10%, rgba(255,200,120,.10), transparent 55%),
-                  radial-gradient(900px 600px at 70% 30%, rgba(255,120,90,.08), transparent 55%),
-                  linear-gradient(180deg, var(--bg0), var(--bg1));
-      overflow-x:hidden;
-    }
-
-    /* Rain overlay */
-    .rain{
-      position:fixed; inset:0;
-      pointer-events:none;
-      opacity:.55;
-      mix-blend-mode: screen;
-      filter: blur(.2px);
-    }
-    .rain::before, .rain::after{
-      content:"";
-      position:absolute; inset:-30%;
-      background-image: repeating-linear-gradient(
-        115deg,
-        rgba(255,255,255,.0) 0px,
-        rgba(255,255,255,.0) 6px,
-        rgba(255,255,255,.06) 7px,
-        rgba(255,255,255,.06) 8px
-      );
-      transform: rotate(0deg);
-      animation: rainMove 1.2s linear infinite;
-    }
-    .rain::after{
-      opacity:.6;
-      animation-duration: .9s;
-      filter: blur(.35px);
-    }
-    @keyframes rainMove{
-      0%{ transform: translate3d(-2%, -2%, 0); }
-      100%{ transform: translate3d(2%, 8%, 0); }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; background:#030913; color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;}
+    body{display:flex; align-items:center; justify-content:center; padding:12px;}
+    .app{
+      width:min(980px, 100%);
+      height:min(760px, 100dvh - 24px);
+      position:relative;
+      border-radius:24px;
+      overflow:hidden;
+      background: radial-gradient(1200px 700px at 30% 15%, #153a58 0%, #081428 45%, #050b16 100%);
+      box-shadow: 0 22px 70px rgba(0,0,0,.55);
+      border: 1px solid rgba(255,255,255,.10);
+      isolation:isolate;
     }
 
-    /* Vignette + warmth glow */
+    /* Scene layers */
+    .scene{position:absolute; inset:0;}
+    canvas{position:absolute; inset:0; width:100%; height:100%; display:block;}
+    #fx {mix-blend-mode:screen; opacity:.9;}
+    #rain {opacity:.85;}
+    #steam {opacity:.9;}
     .vignette{
-      position:fixed; inset:0;
-      pointer-events:none;
+      position:absolute; inset:0;
       background:
-        radial-gradient(1100px 700px at 50% 12%, rgba(255,200,120,.10), transparent 55%),
-        radial-gradient(900px 800px at 50% 60%, rgba(0,0,0,.35), rgba(0,0,0,.65));
-      opacity:.55;
-    }
-    .warmGlow{
-      position:fixed; inset:0;
+        radial-gradient(900px 600px at 50% 30%, rgba(0,0,0,0) 0%, rgba(0,0,0,.22) 55%, rgba(0,0,0,.55) 100%),
+        radial-gradient(900px 900px at 50% 110%, rgba(0,0,0,0) 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.65) 100%);
       pointer-events:none;
-      background: radial-gradient(900px 600px at 50% 55%, rgba(255,190,110,.18), transparent 60%);
-      opacity: calc(var(--warmth) * 0.012);
-      transition: opacity .35s ease;
-      mix-blend-mode: screen;
+      z-index:9;
     }
 
-    .wrap{
-      max-width: 920px;
-      margin: 22px auto 30px;
-      padding: 0 14px 26px;
-    }
-
+    /* Top cinematic bar */
     .topbar{
-      display:flex;
-      justify-content:center;
-      margin: 10px 0 16px;
-    }
-    .marquee{
-      width:min(860px, 100%);
-      border: 1px solid var(--stroke);
-      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      position:absolute; left:16px; right:16px; top:14px;
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      padding:10px 12px;
       border-radius: 999px;
-      padding: 10px 16px;
-      text-transform: uppercase;
-      letter-spacing: .25em;
-      font-size: 12px;
-      color: rgba(255,255,255,.75);
-      display:flex;
-      gap:10px;
-      justify-content:center;
-      box-shadow: 0 14px 32px var(--shadow);
-      backdrop-filter: blur(10px);
-    }
-
-    /* Main layout */
-    .grid{
-      display:grid;
-      grid-template-columns: 1.2fr .9fr;
-      gap: 14px;
-      align-items:start;
-    }
-    @media (max-width: 880px){
-      .grid{ grid-template-columns: 1fr; }
-    }
-
-    .card{
-      border: 1px solid var(--stroke);
-      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-      border-radius: var(--radius);
-      box-shadow: 0 18px 44px var(--shadow);
-      backdrop-filter: blur(12px);
-      overflow:hidden;
-    }
-    .cardPad{ padding: 14px; }
-
-    /* Scene (window + counter + chef + pot) */
-    .scene{
-      position:relative;
-      height: 520px;
-      min-height: 520px;
-    }
-    @media (max-width: 880px){
-      .scene{ height: 560px; min-height:560px; }
-    }
-
-    .window{
-      position:absolute;
-      left: 22px; right: 22px;
-      top: 18px;
-      height: 175px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.18);
-      background:
-        radial-gradient(220px 140px at 20% 40%, rgba(255,210,140,.20), transparent 70%),
-        radial-gradient(260px 160px at 80% 45%, rgba(120,190,255,.10), transparent 72%),
-        linear-gradient(180deg, rgba(10,25,40,.7), rgba(10,25,40,.2));
-      overflow:hidden;
-    }
-    .window::after{
-      content:"";
-      position:absolute; inset:0;
-      background-image: repeating-linear-gradient(
-        100deg,
-        rgba(255,255,255,.0) 0px,
-        rgba(255,255,255,.0) 10px,
-        rgba(255,255,255,.09) 11px,
-        rgba(255,255,255,.09) 12px
-      );
-      opacity:.18;
-    }
-    .window .pane{
-      position:absolute; inset:0;
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0;
-    }
-    .window .pane > div{
-      border-right: 1px solid rgba(255,255,255,.14);
-      border-bottom: 1px solid rgba(255,255,255,.14);
-    }
-    .window .pane > div:nth-child(2n){ border-right:none; }
-
-    .counter{
-      position:absolute;
-      left: 22px; right: 22px;
-      bottom: 18px;
-      height: 250px;
-      border-radius: 22px;
-      border: 1px solid rgba(255,255,255,.14);
-      background:
-        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
-        radial-gradient(900px 260px at 50% 0%, rgba(255,210,140,.09), transparent 65%);
-      overflow:hidden;
-    }
-    .counter::before{
-      content:"";
-      position:absolute; inset:0;
-      background:
-        linear-gradient(90deg, rgba(0,0,0,.0), rgba(0,0,0,.20) 50%, rgba(0,0,0,.0));
-      opacity:.22;
-      transform: translateX(-20%);
-    }
-
-    .cuttingBoard{
-      position:absolute;
-      left: 54px;
-      bottom: 62px;
-      width: 330px;
-      height: 118px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.14);
-      background:
-        radial-gradient(300px 120px at 30% 35%, rgba(255,210,140,.10), transparent 70%),
-        linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
-      box-shadow: 0 20px 40px rgba(0,0,0,.35);
-    }
-    @media (max-width: 520px){
-      .cuttingBoard{ width: 280px; left: 28px; }
-    }
-
-    .pot{
-      position:absolute;
-      right: 56px;
-      bottom: 64px;
-      width: 200px;
-      height: 130px;
-      border-radius: 22px;
-      border: 1px solid rgba(255,255,255,.18);
-      background:
-        linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
-      box-shadow: 0 20px 40px rgba(0,0,0,.35);
-      display:flex;
-      align-items:flex-end;
-      justify-content:center;
-      padding-bottom: 14px;
-    }
-    .pot::before{
-      content:"";
-      position:absolute;
-      top: 16px; left: 16px; right: 16px;
-      height: 26px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(0,0,0,.12);
-    }
-    .pot .label{
-      font-size: 12px;
-      letter-spacing:.08em;
-      color: rgba(255,255,255,.68);
-      user-select:none;
-    }
-    .steam{
-      position:absolute;
-      left: 0; right: 0;
-      bottom: 112px;
-      height: 120px;
-      pointer-events:none;
-      opacity:.85;
-    }
-    .steam span{
-      position:absolute;
-      bottom: 0;
-      width: 60px;
-      height: 90px;
-      left: 50%;
-      transform: translateX(-50%);
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.36), rgba(255,255,255,0) 65%);
-      filter: blur(1px);
-      animation: steamUp 2.6s ease-in-out infinite;
-      opacity:.0;
-    }
-    .steam span:nth-child(2){ left: 42%; animation-delay:.35s; }
-    .steam span:nth-child(3){ left: 58%; animation-delay:.65s; }
-    @keyframes steamUp{
-      0%{ transform: translate(-50%, 16px) scale(.9); opacity:0; }
-      20%{ opacity:.55; }
-      60%{ opacity:.25; }
-      100%{ transform: translate(-50%, -55px) scale(1.15); opacity:0; }
-    }
-
-    .chef{
-      position:absolute;
-      left: 50%;
-      bottom: 108px;
-      transform: translateX(-50%);
-      width: 230px;
-      height: 210px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      user-select:none;
-    }
-    /* simple “sprite” style via CSS shapes (looks way better than emoji) */
-    .chef .head{
-      width: 92px; height: 92px;
-      border-radius: 26px;
-      background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.18), rgba(0,0,0,.10) 65%),
-                  linear-gradient(180deg, rgba(255,220,180,.9), rgba(255,200,150,.8));
-      box-shadow: 0 18px 30px rgba(0,0,0,.22);
-      position:relative;
-      border: 1px solid rgba(255,255,255,.18);
-    }
-    .chef .hat{
-      position:absolute;
-      top:-54px; left: 50%;
-      transform: translateX(-50%);
-      width: 110px;
-      height: 70px;
-      border-radius: 24px 24px 18px 18px;
-      background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(235,235,235,.78));
-      border: 1px solid rgba(255,255,255,.22);
-      box-shadow: 0 18px 30px rgba(0,0,0,.20);
-    }
-    .chef .hat::before{
-      content:"";
-      position:absolute;
-      left: 10px; right: 10px; top: -22px;
-      height: 34px;
-      border-radius: 18px;
-      background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(235,235,235,.74));
-      border: 1px solid rgba(255,255,255,.20);
-    }
-    .chef .eyes{
-      position:absolute;
-      left: 0; right: 0;
-      top: 34px;
-      display:flex;
-      gap: 18px;
-      justify-content:center;
-    }
-    .chef .eyes i{
-      width: 10px; height: 10px;
-      border-radius: 999px;
-      background: rgba(25,35,55,.72);
-      box-shadow: 0 0 0 2px rgba(255,255,255,.08);
-    }
-    .chef .smile{
-      position:absolute;
-      width: 28px; height: 14px;
-      left: 50%; top: 56px;
-      transform: translateX(-50%);
-      border-bottom: 3px solid rgba(25,35,55,.55);
-      border-radius: 0 0 18px 18px;
-      opacity:.7;
-    }
-    .chef .body{
-      position:absolute;
-      top: 86px;
-      width: 160px;
-      height: 120px;
-      border-radius: 28px;
-      background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.06));
-      border: 1px solid rgba(255,255,255,.14);
-      box-shadow: 0 18px 30px rgba(0,0,0,.20);
-    }
-    .chef .apron{
-      position:absolute;
-      top: 102px;
-      width: 120px;
-      height: 100px;
-      border-radius: 20px;
-      background: linear-gradient(180deg, rgba(255,210,140,.15), rgba(255,210,140,.05));
-      border: 1px solid rgba(255,255,255,.12);
-    }
-    .chef.chopAnim{
-      animation: chopBob .18s ease-in-out 0s 2;
-    }
-    @keyframes chopBob{
-      0%{ transform: translateX(-50%) translateY(0); }
-      50%{ transform: translateX(-50%) translateY(6px); }
-      100%{ transform: translateX(-50%) translateY(0); }
-    }
-
-    /* Order card */
-    .orderRow{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 12px;
-    }
-    .orderTitle{
-      font-size: 13px;
-      letter-spacing:.08em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,.65);
-    }
-    .orderMain{
-      font-size: 34px;
-      font-weight: 800;
-      margin-top: 4px;
-      line-height: 1.06;
-    }
-    .orderSub{
-      color: rgba(255,255,255,.72);
-      margin-top: 6px;
-      font-size: 14px;
-    }
-    .ingredientIcon{
-      width: 74px; height: 74px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.16);
       background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size: 44px;
-      box-shadow: 0 18px 30px rgba(0,0,0,.20);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(10px);
+      z-index: 20;
     }
-
-    /* Dialogue */
-    .dialogue{
-      display:flex;
-      gap: 12px;
-      align-items:center;
-    }
-    .portrait{
-      width: 52px; height: 52px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,.16);
-      background:
-        radial-gradient(circle at 35% 30%, rgba(255,210,140,.22), rgba(0,0,0,.12) 70%),
-        linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight: 800;
-      letter-spacing:.06em;
-      color: rgba(255,255,255,.85);
-      box-shadow: 0 16px 26px rgba(0,0,0,.20);
-    }
-    .dialogueText .name{
-      font-weight: 800;
-      color: var(--warm);
-      margin-right: 8px;
-    }
-    .dialogueText .line{
-      color: rgba(255,255,255,.88);
-      font-style: italic;
-    }
-
-    /* Stats + buttons */
-    .stats{
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .stat{
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      border-radius: 16px;
-      padding: 10px 12px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-    }
-    .stat .k{
-      display:flex;
-      align-items:center;
-      gap: 8px;
+    .brand{
+      display:flex; gap:10px; align-items:center;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      font-size:12px;
       color: rgba(255,255,255,.75);
-      font-size: 13px;
-    }
-    .stat .v{
-      font-weight: 900;
-      font-size: 16px;
-      color: rgba(255,255,255,.92);
-    }
-
-    .btnRow{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .btn{
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(255,255,255,.06);
-      border-radius: 16px;
-      padding: 14px 14px;
-      font-weight: 900;
-      letter-spacing: .04em;
-      color: rgba(255,255,255,.92);
-      cursor:pointer;
-      user-select:none;
-      box-shadow: 0 18px 30px rgba(0,0,0,.20);
-      transition: transform .08s ease, background .2s ease, border-color .2s ease;
-    }
-    .btn:active{ transform: translateY(1px) scale(.995); }
-    .btn.primary{
-      background: linear-gradient(180deg, rgba(255,204,122,.95), rgba(255,160,92,.85));
-      color: rgba(20,30,45,.92);
-      border-color: rgba(255,255,255,.20);
-    }
-    .btn.full{
-      grid-column: 1 / -1;
-      text-align:center;
-    }
-    .hint{
-      margin-top: 8px;
-      color: rgba(255,255,255,.62);
-      font-size: 12px;
-      text-align:center;
-    }
-
-    /* Right column: “Now playing / recipe vibe” */
-    .sideTitle{
-      font-weight: 900;
-      letter-spacing:.08em;
-      text-transform: uppercase;
-      font-size: 12px;
-      color: rgba(255,255,255,.70);
-      margin-bottom: 10px;
-    }
-    .sideBig{
-      font-size: 28px;
-      font-weight: 900;
-      line-height:1.1;
-      margin: 0 0 10px;
-    }
-    .sideP{
-      color: rgba(255,255,255,.74);
-      line-height: 1.55;
-      margin: 0 0 12px;
-      font-size: 14px;
-    }
-    .pillRow{
-      display:flex;
-      flex-wrap:wrap;
-      gap: 10px;
-      margin-top: 12px;
+      white-space:nowrap;
     }
     .pill{
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
+      display:flex; gap:10px; align-items:center;
+      padding:8px 12px;
       border-radius: 999px;
-      padding: 8px 12px;
-      color: rgba(255,255,255,.78);
-      font-size: 13px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.10);
+      color: rgba(255,255,255,.85);
+      font-size:12px;
     }
-    .footerNote{
-      margin-top: 14px;
-      color: rgba(255,255,255,.55);
-      font-size: 12px;
+    .timechip{opacity:.9}
+
+    /* UI panel */
+    .hud{
+      position:absolute;
+      left:16px; right:16px; bottom:16px;
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+      z-index: 30;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 18px 45px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+
+    .leftCard{padding:14px;}
+    .orderRow{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 12px;
+      background: rgba(0,0,0,.20);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      gap:12px;
+    }
+    .orderTitle{font-size:12px; color:rgba(255,255,255,.70); margin-bottom:2px}
+    .orderName{font-size:24px; font-weight:760; letter-spacing:.01em}
+    .orderHint{font-size:12px; color:rgba(255,255,255,.65)}
+    .orderIcon{
+      width:54px; height:54px; border-radius:14px;
+      display:grid; place-items:center;
+      background: radial-gradient(40px 40px at 30% 30%, rgba(255,255,255,.20), rgba(255,255,255,.06));
+      border: 1px solid rgba(255,255,255,.10);
+      font-size:28px;
+    }
+    .midRow{
+      display:grid; grid-template-columns: 1fr 1fr; gap:12px;
+      margin-top:12px;
+    }
+    .stat{
+      padding:10px 12px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      font-size:13px;
+      color: rgba(255,255,255,.80);
+    }
+    .stat b{font-size:16px}
+    .dialogue{
+      margin-top:12px;
+      padding:12px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.10);
+      min-height: 60px;
+      display:flex; gap:10px; align-items:flex-start;
+    }
+    .nameTag{font-weight:800; color: var(--warm1);}
+    .quote{color: rgba(255,255,255,.86); font-style: italic; line-height:1.3}
+    .actions{
+      margin-top:12px;
+      display:grid; grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    button{
+      border:none;
+      cursor:pointer;
+      padding:14px 14px;
+      border-radius: 16px;
+      font-weight:850;
+      letter-spacing:.03em;
+      color: rgba(0,0,0,.80);
+      background: linear-gradient(180deg, var(--warm1), var(--warm2));
+      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+      transition: transform .06s ease, filter .2s ease;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active{transform: translateY(1px) scale(.99);}
+    .secondary{
+      background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.08));
+      color: rgba(255,255,255,.88);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: 0 12px 30px rgba(0,0,0,.25);
+    }
+    .lofiBtn{
+      margin-top:12px;
+      width:100%;
+      padding:12px 14px;
+      background: rgba(0,0,0,.28);
+      border: 1px solid rgba(255,255,255,.10);
+      color: rgba(255,255,255,.85);
+      border-radius: 16px;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      font-weight:750;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.25);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.on{background: #7CFFB0; box-shadow: 0 0 0 3px rgba(124,255,176,.18), 0 0 16px rgba(124,255,176,.55);}
+    .hint{
+      font-size:12px; color: rgba(255,255,255,.60); text-align:center; margin-top:10px;
+    }
+
+    /* Right “counter view” */
+    .rightCard{
+      padding:14px;
+      display:flex; flex-direction:column; gap:12px;
+    }
+    .meter{
+      display:grid; grid-template-columns: 1fr 1fr 1fr;
+      gap:10px;
+    }
+    .meter .stat{justify-content:space-between}
+    .mini{
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .miniTitle{font-size:12px; color:rgba(255,255,255,.70); margin-bottom:8px}
+    .progress{
+      height:10px; border-radius:999px;
+      background: rgba(255,255,255,.10);
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.10);
+    }
+    .bar{
+      height:100%;
+      width: 35%;
+      background: linear-gradient(90deg, rgba(255,209,138,.9), rgba(255,159,110,.95));
+      border-radius:999px;
+      box-shadow: 0 0 18px rgba(255,174,118,.30);
+    }
+    .toast{
+      position:absolute; left:50%; bottom:140px; transform:translateX(-50%);
+      padding:10px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.90);
+      font-size:13px;
+      opacity:0;
+      transition: opacity .25s ease, transform .25s ease;
+      z-index: 40;
+      pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+
+    @media (max-width: 760px){
+      .hud{grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <div class="rain"></div>
-  <div class="warmGlow"></div>
-  <div class="vignette"></div>
+  <div class="app" id="app">
+    <div class="scene">
+      <canvas id="bg"></canvas>
+      <canvas id="rain"></canvas>
+      <canvas id="steam"></canvas>
+      <canvas id="fx"></canvas>
+      <div class="vignette"></div>
+    </div>
 
-  <div class="wrap">
     <div class="topbar">
-      <div class="marquee">COZY KITCHEN • OPEN LATE • RAINY NIGHT</div>
+      <div class="brand">COZY KITCHEN • OPEN LATE • RAINY NIGHT</div>
+      <div class="pill timechip" id="clock">12:00 AM</div>
     </div>
 
-    <div class="grid">
-      <!-- LEFT -->
-      <div class="card">
-        <div class="cardPad">
-          <div class="orderRow">
-            <div>
-              <div class="orderTitle">Order</div>
-              <div class="orderMain" id="orderText">Tomato × 3</div>
-              <div class="orderSub" id="orderSub">Keep your rhythm.</div>
-            </div>
-            <div class="ingredientIcon" id="ingredientIcon">🍅</div>
+    <div class="hud">
+      <div class="card leftCard">
+        <div class="orderRow">
+          <div>
+            <div class="orderTitle">Order</div>
+            <div class="orderName" id="orderName">Mushroom × 1</div>
+            <div class="orderHint" id="orderHint">Last one. Make it nice.</div>
           </div>
+          <div class="orderIcon" id="orderIcon">🍄</div>
         </div>
 
-        <div class="scene" id="scene">
-          <div class="window">
-            <div class="pane">
-              <div></div><div></div><div></div><div></div>
-            </div>
-          </div>
-
-          <div class="counter"></div>
-
-          <div class="cuttingBoard"></div>
-
-          <div class="pot" id="pot">
-            <div class="steam" id="steam">
-              <span></span><span></span><span></span>
-            </div>
-            <div class="label" id="potLabel">simmer…</div>
-          </div>
-
-          <div class="chef" id="chef">
-            <div class="head">
-              <div class="hat"></div>
-              <div class="eyes"><i></i><i></i></div>
-              <div class="smile"></div>
-            </div>
-            <div class="body"></div>
-            <div class="apron"></div>
-          </div>
+        <div class="midRow">
+          <div class="stat"><span>Warmth</span><b id="warmth">0</b></div>
+          <div class="stat"><span>Tips</span><b id="tips">0</b></div>
         </div>
 
-        <div class="cardPad">
-          <div class="dialogue">
-            <div class="portrait">M</div>
-            <div class="dialogueText">
-              <div><span class="name">Mara</span> <span class="line" id="line">“Rain makes the kitchen feel quieter.”</span></div>
-            </div>
-          </div>
-
-          <div class="stats">
-            <div class="stat">
-              <div class="k">🧡 Warmth</div>
-              <div class="v" id="warmth">0</div>
-            </div>
-            <div class="stat">
-              <div class="k">💰 Tips</div>
-              <div class="v" id="tips">0</div>
-            </div>
-            <div class="stat">
-              <div class="k">🔥 Streak</div>
-              <div class="v" id="streak">0</div>
-            </div>
-          </div>
-
-          <div class="btnRow">
-            <button class="btn primary" id="chopBtn">CHOP</button>
-            <button class="btn" id="newBtn">New Ingredient</button>
-            <button class="btn full" id="lofiBtn">🎧 Lo-fi (tap to enable)</button>
-          </div>
-          <div class="hint" id="hint">Tip: Tap CHOP in rhythm. Warmth builds the glow.</div>
+        <div class="dialogue">
+          <div class="nameTag" id="npcName">Mara</div>
+          <div class="quote" id="npcLine">“The rain sounds softer from inside.”</div>
         </div>
+
+        <div class="actions">
+          <button id="chopBtn">CHOP</button>
+          <button class="secondary" id="serveBtn">SERVE</button>
+        </div>
+
+        <button class="lofiBtn" id="lofiBtn" aria-label="Toggle lo-fi">
+          <span class="dot" id="lofiDot"></span>
+          <span id="lofiLabel">Lo-fi (tap to enable)</span>
+        </button>
+
+        <div class="hint" id="hint">Tip: chop to build rhythm → serve when the pot is steaming.</div>
       </div>
 
-      <!-- RIGHT -->
-      <div class="card">
-        <div class="cardPad">
-          <div class="sideTitle">Tonight’s vibe</div>
-          <div class="sideBig">A warm kitchen, rain on the window, soft music.</div>
-          <p class="sideP">
-            This is a <b>playable prototype</b> that feels cozy. Next step after this:
-            we swap the “stylized” chef into real illustrated sprites, add customers
-            sliding into the booth, and give Mara a few more lines + reactions.
-          </p>
-          <div class="pillRow">
-            <div class="pill">🌧️ Rainy ambience</div>
-            <div class="pill">🔥 Steam + simmer</div>
-            <div class="pill">🧡 Warmth glow</div>
-            <div class="pill">🎧 Lo-fi toggle</div>
-          </div>
-          <div class="footerNote">
-            If you want “real characters + restaurant interior art”, we’ll add an <code>/assets</code> folder next and drop in images.
+      <div class="card rightCard">
+        <div class="meter">
+          <div class="stat"><span>Streak</span><b id="streak">0</b></div>
+          <div class="stat"><span>Calm</span><b id="calm">100</b></div>
+          <div class="stat"><span>Night</span><b id="night">1</b></div>
+        </div>
+
+        <div class="mini">
+          <div class="miniTitle">Pot Heat</div>
+          <div class="progress"><div class="bar" id="heatBar"></div></div>
+        </div>
+
+        <div class="mini">
+          <div class="miniTitle">Chop Rhythm</div>
+          <div class="progress"><div class="bar" id="rhythmBar" style="width: 0%"></div></div>
+        </div>
+
+        <div class="mini">
+          <div class="miniTitle">Mood</div>
+          <div style="font-size:13px;color:rgba(255,255,255,.80);line-height:1.35" id="moodText">
+            The kitchen is quiet. Only the window knows the storm.
           </div>
         </div>
       </div>
     </div>
+
+    <div class="toast" id="toast">Saved.</div>
   </div>
 
 <script>
-  // --------- Game State ----------
-  const ingredients = [
-    {name:"Tomato", icon:"🍅", sub:"Keep your rhythm."},
-    {name:"Mushroom", icon:"🍄", sub:"Last one. Make it nice."},
-    {name:"Garlic", icon:"🧄", sub:"Small cuts. Big flavor."},
-    {name:"Carrot", icon:"🥕", sub:"Comfort in slices."},
-    {name:"Onion", icon:"🧅", sub:"Tears mean it matters."},
-    {name:"Herbs", icon:"🌿", sub:"A quiet finishing touch."}
+(() => {
+  // ---------- State ----------
+  const state = {
+    warmth: 0,
+    tips: 0,
+    streak: 0,
+    calm: 100,
+    night: 1,
+    heat: 0.35,   // 0..1
+    rhythm: 0,    // 0..1
+    lastChop: 0,
+    lofiOn: false,
+    t: 0,
+    orderIndex: 0,
+  };
+
+  const orders = [
+    { name:"Mushroom × 1", icon:"🍄", hint:"Last one. Make it nice." },
+    { name:"Tomato × 3", icon:"🍅", hint:"Keep your rhythm." },
+    { name:"Garlic × 2", icon:"🧄", hint:"Quiet hands, sharp blade." },
+    { name:"Onion × 1", icon:"🧅", hint:"Slow is smooth." },
+    { name:"Carrot × 2", icon:"🥕", hint:"Warmth sells." },
   ];
 
   const lines = [
-    "“Rain makes the kitchen feel quieter.”",
-    "“The stove light is my favorite kind of glow.”",
-    "“Chop slow. Let it feel like a ritual.”",
-    "“The city is loud. In here, we simmer.”",
-    "“One good dish can change a whole day.”"
+    "“The rain sounds softer from inside.”",
+    "“I like late shifts. No small talk.”",
+    "“Steam means we’re alive.”",
+    "“Don’t rush. The kitchen remembers.”",
+    "“Some nights the stove is the only friend.”"
   ];
 
-  let current = 0;
-  let qty = 3;
+  const $ = (id) => document.getElementById(id);
+  const ui = {
+    warmth: $("warmth"),
+    tips: $("tips"),
+    streak: $("streak"),
+    calm: $("calm"),
+    night: $("night"),
+    orderName: $("orderName"),
+    orderHint: $("orderHint"),
+    orderIcon: $("orderIcon"),
+    npcName: $("npcName"),
+    npcLine: $("npcLine"),
+    heatBar: $("heatBar"),
+    rhythmBar: $("rhythmBar"),
+    moodText: $("moodText"),
+    toast: $("toast"),
+    clock: $("clock"),
+    chopBtn: $("chopBtn"),
+    serveBtn: $("serveBtn"),
+    lofiBtn: $("lofiBtn"),
+    lofiDot: $("lofiDot"),
+    lofiLabel: $("lofiLabel"),
+    hint: $("hint"),
+  };
 
-  let warmth = 0;
-  let tips = 0;
-  let streak = 0;
-
-  // --------- Elements ----------
-  const orderText = document.getElementById("orderText");
-  const orderSub  = document.getElementById("orderSub");
-  const ingredientIcon = document.getElementById("ingredientIcon");
-  const lineEl = document.getElementById("line");
-
-  const warmthEl = document.getElementById("warmth");
-  const tipsEl = document.getElementById("tips");
-  const streakEl = document.getElementById("streak");
-
-  const chef = document.getElementById("chef");
-  const potLabel = document.getElementById("potLabel");
-  const steam = document.getElementById("steam");
-
-  const chopBtn = document.getElementById("chopBtn");
-  const newBtn = document.getElementById("newBtn");
-  const lofiBtn = document.getElementById("lofiBtn");
-
-  function render(){
-    const ing = ingredients[current];
-    orderText.textContent = `${ing.name} × ${qty}`;
-    orderSub.textContent = ing.sub;
-    ingredientIcon.textContent = ing.icon;
-
-    warmthEl.textContent = warmth;
-    tipsEl.textContent = tips;
-    streakEl.textContent = streak;
-
-    // warm glow intensity
-    document.documentElement.style.setProperty("--warmth", warmth);
-
-    // simmer label mood
-    potLabel.textContent = warmth > 30 ? "simmer… (cozy)" : "simmer…";
-
-    // steam more visible with warmth
-    const op = Math.min(.95, .35 + warmth * 0.012);
-    steam.style.opacity = op.toFixed(2);
-
-    lineEl.textContent = lines[(warmth + tips + streak) % lines.length];
+  function toast(msg){
+    ui.toast.textContent = msg;
+    ui.toast.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=>ui.toast.classList.remove("show"), 1400);
   }
 
-  // --------- Chop action ----------
-  let lastChopAt = 0;
-  chopBtn.addEventListener("click", ()=>{
-    // animation
-    chef.classList.remove("chopAnim");
-    void chef.offsetWidth;
-    chef.classList.add("chopAnim");
+  function setOrder(i){
+    const o = orders[i % orders.length];
+    ui.orderName.textContent = o.name;
+    ui.orderHint.textContent = o.hint;
+    ui.orderIcon.textContent = o.icon;
+    ui.npcName.textContent = "Mara";
+    ui.npcLine.textContent = lines[i % lines.length];
+  }
 
-    // “rhythm” scoring: reward chops spaced ~350–650ms
+  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
+  function updateUI(){
+    ui.warmth.textContent = state.warmth;
+    ui.tips.textContent = state.tips;
+    ui.streak.textContent = state.streak;
+    ui.calm.textContent = Math.round(state.calm);
+    ui.night.textContent = state.night;
+
+    ui.heatBar.style.width = `${Math.round(state.heat*100)}%`;
+    ui.rhythmBar.style.width = `${Math.round(state.rhythm*100)}%`;
+
+    const mood =
+      state.calm > 70 ? "The kitchen is quiet. Only the window knows the storm." :
+      state.calm > 40 ? "Your hands are steady, but the night is loud." :
+      "Breath shallow. Focus on one chop at a time.";
+    ui.moodText.textContent = mood;
+
+    // Clock drift
+    const minutes = (state.t * 2) % 60;
+    const hour = 12 + Math.floor((state.t*2)/60)%2; // just vibes
+    const hh = ((hour-1)%12)+1;
+    const mm = String(Math.floor(minutes)).padStart(2,"0");
+    ui.clock.textContent = `${hh}:${mm} AM`;
+  }
+
+  // ---------- Canvas setup ----------
+  const bg = $("bg"), rain = $("rain"), steam = $("steam"), fx = $("fx");
+  const ctxBg = bg.getContext("2d");
+  const ctxRain = rain.getContext("2d");
+  const ctxSteam = steam.getContext("2d");
+  const ctxFx = fx.getContext("2d");
+
+  function resize(){
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const rect = bg.getBoundingClientRect();
+    [bg, rain, steam, fx].forEach(c => {
+      c.width = Math.floor(rect.width * dpr);
+      c.height = Math.floor(rect.height * dpr);
+      c._dpr = dpr;
+    });
+  }
+  window.addEventListener("resize", resize, {passive:true});
+  resize();
+
+  // ---------- Draw helpers ----------
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+  }
+
+  function drawKitchenBase(){
+    const dpr = bg._dpr;
+    const W = bg.width, H = bg.height;
+
+    ctxBg.clearRect(0,0,W,H);
+
+    // Base gradient
+    const g = ctxBg.createLinearGradient(0,0,0,H);
+    g.addColorStop(0, "#0b2740");
+    g.addColorStop(0.55, "#071328");
+    g.addColorStop(1, "#040a14");
+    ctxBg.fillStyle = g;
+    ctxBg.fillRect(0,0,W,H);
+
+    // Window glow area
+    const winX = W*0.08, winY=H*0.12, winW=W*0.36, winH=H*0.46;
+    ctxBg.save();
+    const wG = ctxBg.createRadialGradient(winX+winW*0.5, winY+winH*0.35, 20, winX+winW*0.5, winY+winH*0.35, winW*0.9);
+    wG.addColorStop(0, "rgba(120,190,255,0.18)");
+    wG.addColorStop(1, "rgba(0,0,0,0)");
+    ctxBg.fillStyle = wG;
+    ctxBg.fillRect(winX-60, winY-60, winW+120, winH+120);
+    ctxBg.restore();
+
+    // Window frame
+    ctxBg.save();
+    ctxBg.fillStyle = "rgba(255,255,255,0.06)";
+    ctxBg.strokeStyle = "rgba(255,255,255,0.12)";
+    ctxBg.lineWidth = 2*dpr;
+    roundRect(ctxBg, winX, winY, winW, winH, 18*dpr);
+    ctxBg.fill(); ctxBg.stroke();
+
+    // Window panes
+    ctxBg.beginPath();
+    ctxBg.moveTo(winX+winW*0.5, winY);
+    ctxBg.lineTo(winX+winW*0.5, winY+winH);
+    ctxBg.moveTo(winX, winY+winH*0.5);
+    ctxBg.lineTo(winX+winW, winY+winH*0.5);
+    ctxBg.strokeStyle = "rgba(255,255,255,0.10)";
+    ctxBg.lineWidth = 2*dpr;
+    ctxBg.stroke();
+    ctxBg.restore();
+
+    // Warm pendant lights
+    for(let i=0;i<3;i++){
+      const lx = W*(0.52 + i*0.14);
+      const ly = H*0.09;
+      ctxBg.strokeStyle = "rgba(255,255,255,0.12)";
+      ctxBg.lineWidth = 2*dpr;
+      ctxBg.beginPath();
+      ctxBg.moveTo(lx, 0);
+      ctxBg.lineTo(lx, ly);
+      ctxBg.stroke();
+
+      const glow = ctxBg.createRadialGradient(lx, ly+18*dpr, 10, lx, ly+18*dpr, 130*dpr);
+      glow.addColorStop(0,"rgba(255,209,138,0.28)");
+      glow.addColorStop(1,"rgba(255,209,138,0)");
+      ctxBg.fillStyle = glow;
+      ctxBg.fillRect(lx-140*dpr, ly-40*dpr, 280*dpr, 260*dpr);
+
+      ctxBg.fillStyle = "rgba(255,209,138,0.22)";
+      ctxBg.strokeStyle = "rgba(255,255,255,0.12)";
+      ctxBg.lineWidth = 2*dpr;
+      roundRect(ctxBg, lx-18*dpr, ly, 36*dpr, 28*dpr, 10*dpr);
+      ctxBg.fill(); ctxBg.stroke();
+    }
+
+    // Counter / table
+    const counterY = H*0.62;
+    const cg = ctxBg.createLinearGradient(0,counterY,0,H);
+    cg.addColorStop(0,"rgba(0,0,0,0)");
+    cg.addColorStop(1,"rgba(0,0,0,0.55)");
+    ctxBg.fillStyle = cg;
+    ctxBg.fillRect(0,counterY, W, H-counterY);
+
+    ctxBg.fillStyle = "rgba(255,255,255,0.06)";
+    ctxBg.strokeStyle = "rgba(255,255,255,0.10)";
+    ctxBg.lineWidth = 2*dpr;
+    roundRect(ctxBg, W*0.06, H*0.58, W*0.88, H*0.36, 22*dpr);
+    ctxBg.fill(); ctxBg.stroke();
+
+    // Cutting board
+    const bx=W*0.52, by=H*0.67, bw=W*0.28, bh=H*0.12;
+    ctxBg.fillStyle = "rgba(255,209,138,0.12)";
+    ctxBg.strokeStyle = "rgba(255,255,255,0.12)";
+    ctxBg.lineWidth = 2*dpr;
+    roundRect(ctxBg, bx, by, bw, bh, 18*dpr);
+    ctxBg.fill(); ctxBg.stroke();
+
+    // Pot (base)
+    const px=W*0.23, py=H*0.68;
+    ctxBg.save();
+    ctxBg.fillStyle = "rgba(255,255,255,0.10)";
+    ctxBg.strokeStyle = "rgba(255,255,255,0.16)";
+    ctxBg.lineWidth = 2*dpr;
+    roundRect(ctxBg, px, py, W*0.20, H*0.12, 18*dpr);
+    ctxBg.fill(); ctxBg.stroke();
+    // Lid
+    roundRect(ctxBg, px+W*0.03, py-H*0.03, W*0.14, H*0.05, 16*dpr);
+    ctxBg.fill(); ctxBg.stroke();
+    // Knob
+    ctxBg.beginPath();
+    ctxBg.arc(px+W*0.10, py-H*0.03, 8*dpr, 0, Math.PI*2);
+    ctxBg.fillStyle = "rgba(255,209,138,0.16)";
+    ctxBg.fill();
+    ctxBg.restore();
+
+    // Chef station “spotlight”
+    const spot = ctxBg.createRadialGradient(W*0.62, H*0.72, 20, W*0.62, H*0.72, 320*dpr);
+    spot.addColorStop(0,"rgba(255,209,138,0.14)");
+    spot.addColorStop(1,"rgba(255,209,138,0)");
+    ctxBg.fillStyle = spot;
+    ctxBg.fillRect(W*0.28, H*0.40, W*0.70, H*0.60);
+  }
+
+  // Pixel chef sprite (simple but not emoji)
+  function drawChef(ctx, x, y, s, chopPhase){
+    // 16x16 pixel map, scale by s
+    const pixels = [
+      "....wwww....ww..",
+      "...wwwwww..wwww.",
+      "...wwwwww..wwww.",
+      "....wwww....ww..",
+      ".....ss......ss.",
+      "....ssss....ssss",
+      "...ssssss..ssss.",
+      "...ssssss..ssss.",
+      "....tttttttttt..",
+      "....ttt....ttt..",
+      "...ttt......ttt.",
+      "..ttt........ttt",
+      "..bb..........bb",
+      ".bbbb........bbbb",
+      ".bbbb........bbbb",
+      "..bb..........bb"
+    ];
+    const colors = {
+      w: "rgba(255,255,255,0.90)",    // hat
+      s: "rgba(255,220,180,0.92)",    // skin
+      t: "rgba(255,255,255,0.72)",    // coat
+      b: "rgba(25,25,30,0.85)",       // pants/shoes
+      ".": null
+    };
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.imageSmoothingEnabled = false;
+
+    // Slight bob
+    const bob = Math.sin(chopPhase*2*Math.PI)*2*s;
+    ctx.translate(0, bob);
+
+    // body
+    for(let r=0;r<pixels.length;r++){
+      for(let c=0;c<pixels[r].length;c++){
+        const ch = pixels[r][c];
+        const col = colors[ch];
+        if(!col) continue;
+        ctx.fillStyle = col;
+        ctx.fillRect(c*s, r*s, s, s);
+      }
+    }
+
+    // arm + knife “chop” (animated)
+    const armX = 12*s, armY = 10*s;
+    const swing = Math.sin(chopPhase*2*Math.PI)*0.9;
+    ctx.save();
+    ctx.translate(armX, armY);
+    ctx.rotate(-0.6 + swing*0.7);
+    ctx.fillStyle = "rgba(255,220,180,0.92)";
+    ctx.fillRect(0,0, 2*s, 4*s);
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    ctx.fillRect(2*s, 1.2*s, 5*s, 0.8*s);
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  // Rain particles
+  const drops = [];
+  function initRain(){
+    drops.length = 0;
+    const W=rain.width, H=rain.height;
+    const N = Math.floor((W*H)/70000);
+    for(let i=0;i<N;i++){
+      drops.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        z: Math.random()*1,
+        v: 6 + Math.random()*10,
+        l: 12 + Math.random()*18
+      });
+    }
+  }
+  initRain();
+  window.addEventListener("resize", initRain, {passive:true});
+
+  function drawRain(dt){
+    const W=rain.width, H=rain.height, dpr=rain._dpr;
+    ctxRain.clearRect(0,0,W,H);
+
+    // subtle diagonal sheets
+    ctxRain.save();
+    ctxRain.globalAlpha = 0.25;
+    ctxRain.fillStyle = "rgba(160,210,255,0.10)";
+    for(let i=0;i<8;i++){
+      ctxRain.fillRect((i*W/7) - (state.t*40)%200, 0, 60*dpr, H);
+    }
+    ctxRain.restore();
+
+    ctxRain.strokeStyle = "rgba(190,230,255,0.35)";
+    ctxRain.lineWidth = 1*dpr;
+    ctxRain.lineCap = "round";
+
+    for(const d of drops){
+      d.y += d.v * (1.2 + d.z) * dt;
+      d.x -= (2.5 + d.z*3) * dt * 60;
+      if(d.y > H + 40) { d.y = -40; d.x = Math.random()*W; }
+      if(d.x < -40) { d.x = W + 40; }
+
+      const len = d.l * (1.0 + d.z);
+      ctxRain.globalAlpha = 0.18 + d.z*0.25;
+      ctxRain.beginPath();
+      ctxRain.moveTo(d.x, d.y);
+      ctxRain.lineTo(d.x - 10*dpr, d.y + len);
+      ctxRain.stroke();
+    }
+  }
+
+  // Steam puffs
+  const puffs = [];
+  function spawnPuff(){
+    const W=steam.width, H=steam.height;
+    puffs.push({
+      x: W*0.33 + (Math.random()-0.5)*40*steam._dpr,
+      y: H*0.66,
+      r: 10*steam._dpr + Math.random()*18*steam._dpr,
+      a: 0.0,
+      life: 2.5 + Math.random()*1.8,
+      vx: (Math.random()-0.5)*14*steam._dpr,
+      vy: - (22 + Math.random()*18)*steam._dpr
+    });
+  }
+
+  function drawSteam(dt){
+    const W=steam.width, H=steam.height;
+    ctxSteam.clearRect(0,0,W,H);
+
+    // spawn based on heat
+    const spawnRate = 0.2 + state.heat*0.9;
+    if(Math.random() < spawnRate * dt * 2.2){
+      spawnPuff();
+    }
+
+    for(let i=puffs.length-1;i>=0;i--){
+      const p=puffs[i];
+      p.a += dt;
+      const t = p.a / p.life;
+      if(t>=1){ puffs.splice(i,1); continue; }
+      p.x += p.vx*dt;
+      p.y += p.vy*dt;
+      const alpha = (1 - t) * 0.20 * (0.6 + state.heat);
+      ctxSteam.fillStyle = `rgba(220,240,255,${alpha})`;
+      ctxSteam.beginPath();
+      ctxSteam.ellipse(p.x, p.y, p.r*(1+t*1.2), p.r*(1+t*1.5), 0, 0, Math.PI*2);
+      ctxSteam.fill();
+    }
+  }
+
+  // FX layer: sparks + chop flash + subtle film grain
+  const sparks = [];
+  function addSpark(x,y){
+    const W=fx.width, H=fx.height;
+    for(let i=0;i<10;i++){
+      sparks.push({
+        x, y,
+        vx:(Math.random()-0.5)*260*fx._dpr,
+        vy:(-Math.random())*320*fx._dpr,
+        a:0,
+        life:0.45+Math.random()*0.25
+      });
+    }
+  }
+
+  function drawFX(dt){
+    const W=fx.width, H=fx.height;
+    ctxFx.clearRect(0,0,W,H);
+
+    // sparks
+    for(let i=sparks.length-1;i>=0;i--){
+      const s=sparks[i];
+      s.a += dt;
+      const t=s.a/s.life;
+      if(t>=1){ sparks.splice(i,1); continue; }
+      s.x += s.vx*dt; s.y += s.vy*dt;
+      s.vy += 420*fx._dpr*dt;
+      ctxFx.globalAlpha = (1-t)*0.85;
+      ctxFx.fillStyle = "rgba(255,209,138,0.85)";
+      ctxFx.fillRect(s.x, s.y, 2*fx._dpr, 2*fx._dpr);
+    }
+    ctxFx.globalAlpha = 1;
+
+    // film grain (light)
+    ctxFx.globalAlpha = 0.06;
+    for(let i=0;i<140;i++){
+      const gx = Math.random()*W;
+      const gy = Math.random()*H;
+      ctxFx.fillStyle = `rgba(255,255,255,${Math.random()*0.6})`;
+      ctxFx.fillRect(gx, gy, 1*fx._dpr, 1*fx._dpr);
+    }
+    ctxFx.globalAlpha = 1;
+  }
+
+  // ---------- Main animation loop ----------
+  let last = performance.now();
+  let chopPhase = 0;
+  function tick(now){
+    const dt = Math.min(0.033, (now-last)/1000);
+    last = now;
+    state.t += dt;
+
+    // slow heat drift
+    state.heat = clamp(state.heat + (Math.sin(state.t*0.6)*0.003) + 0.002*dt, 0.12, 1);
+
+    // calm decays slightly; recovers with good rhythm
+    state.calm = clamp(state.calm - (0.7*dt) + (state.rhythm*1.2*dt), 0, 100);
+
+    // rhythm decays
+    state.rhythm = clamp(state.rhythm - 0.25*dt, 0, 1);
+
+    // Scene draw
+    drawKitchenBase();
+
+    // draw chef near board
+    const W=bg.width, H=bg.height;
+    chopPhase = (chopPhase + dt*(1.2 + state.rhythm*4)) % 1;
+    drawChef(ctxBg, W*0.62, H*0.60, 4*bg._dpr, chopPhase);
+
+    drawRain(dt);
+    drawSteam(dt);
+    drawFX(dt);
+
+    updateUI();
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ---------- Gameplay ----------
+  function doChop(){
     const now = performance.now();
-    const dt = now - lastChopAt;
-    lastChopAt = now;
+    const delta = now - state.lastChop;
+    state.lastChop = now;
 
-    let bonus = 0;
-    if(dt > 350 && dt < 650) bonus = 2;
-    else if(dt > 220 && dt < 900) bonus = 1;
+    // rhythm rewards ~450ms to ~700ms taps
+    const target = 560;
+    const score = Math.max(0, 1 - Math.abs(delta - target)/target);
+    state.rhythm = clamp(state.rhythm + score*0.28 + 0.10, 0, 1);
 
-    streak = Math.min(99, streak + (bonus ? 1 : 0));
-    warmth = Math.min(100, warmth + 2 + bonus);
-    tips = Math.min(999, tips + 1 + bonus);
+    // warmth grows with rhythm
+    state.warmth += Math.round(1 + state.rhythm*2);
+    state.streak += 1;
 
-    qty -= 1;
-    if(qty <= 0){
-      // next order
-      tips += 4;
-      warmth = Math.min(100, warmth + 6);
-      streak = Math.min(99, streak + 1);
-      current = (current + 1) % ingredients.length;
-      qty = 1 + Math.floor(Math.random() * 4);
+    // sparks at board
+    addSpark(fx.width*0.70, fx.height*0.74);
+
+    // tiny text feedback
+    if(score > 0.75) toast("Nice rhythm.");
+    else if(score > 0.45) toast("Good.");
+    else toast("Too fast / too slow.");
+  }
+
+  function doServe(){
+    // need enough heat + some rhythm
+    const ok = state.heat > 0.45 && state.rhythm > 0.25;
+    if(!ok){
+      state.streak = Math.max(0, state.streak-1);
+      toast("Not ready. Let it simmer.");
+      ui.npcLine.textContent = "“Let it breathe a second.”";
+      return;
     }
-    render();
-  });
+    const tip = Math.round(2 + state.rhythm*8 + state.heat*6);
+    state.tips += tip;
+    state.warmth += Math.round(3 + state.heat*4);
+    state.calm = clamp(state.calm + 6, 0, 100);
 
-  newBtn.addEventListener("click", ()=>{
-    current = (current + 1) % ingredients.length;
-    qty = 1 + Math.floor(Math.random() * 4);
-    streak = Math.max(0, streak - 1);
-    render();
-  });
+    toast(`Served. +$${tip}`);
+    ui.npcLine.textContent = "“Perfect. Quietly perfect.”";
 
-  // --------- Lo-fi (WebAudio) ----------
-  let audioOn = false;
-  let ctx, master, drone, beatTimer;
+    state.orderIndex++;
+    if(state.orderIndex % 3 === 0){
+      state.night++;
+      toast("A new night begins.");
+    }
+    setOrder(state.orderIndex);
 
+    // reset rhythm a bit so it feels like a new task
+    state.rhythm = clamp(state.rhythm*0.35, 0, 1);
+  }
+
+  ui.chopBtn.addEventListener("click", doChop);
+  ui.serveBtn.addEventListener("click", doServe);
+
+  // ---------- Lo-fi (WebAudio) ----------
+  let audio = null;
   function startLofi(){
-    if(audioOn) return;
-    audioOn = true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) { toast("Audio not supported."); return; }
+    if(!audio){
+      const ctx = new AC();
+      const master = ctx.createGain();
+      master.gain.value = 0.0;
+      master.connect(ctx.destination);
 
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // soft pad (sine)
+      const pad = ctx.createOscillator();
+      pad.type = "sine";
+      pad.frequency.value = 196; // G3
+      const padGain = ctx.createGain();
+      padGain.gain.value = 0.06;
+      pad.connect(padGain).connect(master);
+      pad.start();
 
-    master = ctx.createGain();
-    master.gain.value = 0.20; // overall volume
-    master.connect(ctx.destination);
+      // mellow chords (triangle)
+      const chord = ctx.createOscillator();
+      chord.type = "triangle";
+      chord.frequency.value = 246.94; // B3
+      const chordGain = ctx.createGain();
+      chordGain.gain.value = 0.035;
+      chord.connect(chordGain).connect(master);
+      chord.start();
 
-    // Soft “tape” hiss
-    const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-    const data = noiseBuf.getChannelData(0);
-    for(let i=0;i<data.length;i++){
-      data[i] = (Math.random()*2-1) * 0.12;
-    }
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuf;
-    noise.loop = true;
+      // gentle noise (vinyl)
+      const buf = ctx.createBuffer(1, ctx.sampleRate*2, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * 0.25;
+      const noise = ctx.createBufferSource();
+      noise.buffer = buf;
+      noise.loop = true;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = "lowpass";
+      noiseFilter.frequency.value = 900;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.value = 0.02;
+      noise.connect(noiseFilter).connect(noiseGain).connect(master);
+      noise.start();
 
-    const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = "lowpass";
-    noiseFilter.frequency.value = 900;
+      // simple “kick” using a short pitch drop
+      const kickGain = ctx.createGain();
+      kickGain.gain.value = 0.10;
+      kickGain.connect(master);
 
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.value = 0.05;
-
-    noise.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(master);
-    noise.start();
-
-    // Warm chord drone
-    drone = ctx.createOscillator();
-    drone.type = "triangle";
-    drone.frequency.value = 196; // G3-ish
-
-    const droneGain = ctx.createGain();
-    droneGain.gain.value = 0.06;
-
-    const droneLP = ctx.createBiquadFilter();
-    droneLP.type = "lowpass";
-    droneLP.frequency.value = 700;
-
-    drone.connect(droneLP);
-    droneLP.connect(droneGain);
-    droneGain.connect(master);
-    drone.start();
-
-    // Simple “kick/snare” using short noise bursts
-    const bpm = 78;
-    const interval = (60 / bpm) * 1000;
-    let step = 0;
-
-    beatTimer = setInterval(()=>{
-      if(!ctx) return;
-
-      // kick
-      if(step % 4 === 0){
+      function kick(){
         const o = ctx.createOscillator();
-        const g = ctx.createGain();
         o.type = "sine";
-        o.frequency.setValueAtTime(120, ctx.currentTime);
-        o.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + 0.08);
-        g.gain.setValueAtTime(0.18, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-        o.connect(g); g.connect(master);
-        o.start();
-        o.stop(ctx.currentTime + 0.13);
-      }
-
-      // snare-ish
-      if(step % 8 === 4){
-        const n = ctx.createBufferSource();
-        n.buffer = noiseBuf;
         const g = ctx.createGain();
-        g.gain.setValueAtTime(0.08, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
-
-        const hp = ctx.createBiquadFilter();
-        hp.type = "highpass";
-        hp.frequency.value = 1200;
-
-        n.connect(hp); hp.connect(g); g.connect(master);
-        n.start();
-        n.stop(ctx.currentTime + 0.10);
+        o.connect(g).connect(kickGain);
+        const t = ctx.currentTime;
+        o.frequency.setValueAtTime(120, t);
+        o.frequency.exponentialRampToValueAtTime(40, t+0.08);
+        g.gain.setValueAtTime(0.0, t);
+        g.gain.linearRampToValueAtTime(1.0, t+0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, t+0.18);
+        o.start(t);
+        o.stop(t+0.2);
       }
 
-      step++;
-    }, interval);
+      // tempo loop
+      let timer = null;
+      function loop(){
+        kick();
+        // drift chord
+        chord.frequency.value = 246.94 + Math.sin(ctx.currentTime*0.35)*2.0;
+        pad.frequency.value = 196 + Math.sin(ctx.currentTime*0.22)*1.4;
+        timer = setTimeout(loop, 750); // ~80 bpm
+      }
+      loop();
 
-    lofiBtn.textContent = "🎧 Lo-fi (on)";
+      audio = { ctx, master, loopTimer: () => timer, stopLoop: () => clearTimeout(timer) };
+    }
+
+    // resume context (required on iOS)
+    audio.ctx.resume?.();
+    // fade in
+    audio.master.gain.cancelScheduledValues(audio.ctx.currentTime);
+    audio.master.gain.linearRampToValueAtTime(0.22, audio.ctx.currentTime + 0.2);
+    state.lofiOn = true;
+
+    ui.lofiDot.classList.add("on");
+    ui.lofiLabel.textContent = "Lo-fi (on)";
+    toast("Lo-fi enabled.");
   }
 
   function stopLofi(){
-    audioOn = false;
-    lofiBtn.textContent = "🎧 Lo-fi (tap to enable)";
-    if(beatTimer) clearInterval(beatTimer);
-    beatTimer = null;
-    try{
-      if(drone) drone.stop();
-    }catch(e){}
-    drone = null;
-    if(ctx){
-      ctx.close();
-      ctx = null;
-    }
+    if(!audio) return;
+    audio.master.gain.cancelScheduledValues(audio.ctx.currentTime);
+    audio.master.gain.linearRampToValueAtTime(0.0, audio.ctx.currentTime + 0.15);
+    state.lofiOn = false;
+    ui.lofiDot.classList.remove("on");
+    ui.lofiLabel.textContent = "Lo-fi (tap to enable)";
+    toast("Lo-fi off.");
   }
 
-  lofiBtn.addEventListener("click", async ()=>{
-    // iOS needs a user gesture — this click counts.
-    if(!audioOn){
-      startLofi();
-    }else{
-      stopLofi();
-    }
+  ui.lofiBtn.addEventListener("click", () => {
+    if(!state.lofiOn) startLofi();
+    else stopLofi();
   });
 
-  // initial
-  render();
+  // Init
+  setOrder(0);
+  updateUI();
+})();
 </script>
 </body>
 </html>
