@@ -1,68 +1,926 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Cozy Kitchen</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      margin: 0;
-      background: linear-gradient(#0f172a, #1e293b);
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
+    :root{
+      --bg0:#061329;
+      --bg1:#0b1f3a;
+      --glass: rgba(255,255,255,0.08);
+      --glass2: rgba(255,255,255,0.12);
+      --stroke: rgba(255,255,255,0.10);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.70);
+      --warm: 0; /* 0..1 from JS */
+      --accent: #f2c46b;
+      --accent2: #ffdf9a;
+      --shadow: rgba(0,0,0,0.40);
+      --radius: 18px;
     }
 
-    .kitchen {
-      padding: 60px 20px;
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background: radial-gradient(1200px 900px at 40% 20%, #112a4c 0%, var(--bg1) 35%, var(--bg0) 85%);
+      overflow:hidden;
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
     }
 
-    .title {
-      font-size: 32px;
-      margin-bottom: 10px;
+    /* Fullscreen stage */
+    #scene{
+      position:relative;
+      width:100vw;
+      height:100vh;
+      overflow:hidden;
     }
 
-    .rain {
-      position: fixed;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      background-image: repeating-linear-gradient(
-        to bottom,
-        rgba(255,255,255,0.1) 0px,
-        rgba(255,255,255,0.1) 2px,
-        transparent 2px,
-        transparent 8px
-      );
-      animation: rain 0.5s linear infinite;
+    /* Rain canvas behind everything */
+    #rain{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      z-index:0;
+      opacity:0.85;
     }
 
-    @keyframes rain {
-      from { background-position: 0 0; }
-      to { background-position: 0 10px; }
+    /* Warm glow overlay (gets stronger with warmth) */
+    #warmGlow{
+      position:absolute;
+      inset:-20%;
+      z-index:1;
+      pointer-events:none;
+      background:
+        radial-gradient(700px 500px at 40% 70%,
+          rgba(255,175,85, calc(0.12 + 0.22*var(--warm))) 0%,
+          rgba(255,175,85, calc(0.05 + 0.10*var(--warm))) 35%,
+          rgba(255,175,85, 0) 70%);
+      mix-blend-mode: screen;
+      filter: blur(10px);
+      transform: translateZ(0);
     }
 
-    .pot {
-      margin-top: 40px;
-      font-size: 60px;
-      animation: simmer 2s ease-in-out infinite;
+    /* Subtle vignette */
+    #vignette{
+      position:absolute;
+      inset:0;
+      z-index:2;
+      pointer-events:none;
+      background: radial-gradient(120% 120% at 50% 40%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.22) 55%, rgba(0,0,0,0.55) 100%);
     }
 
-    @keyframes simmer {
-      0% { transform: translateY(0); }
-      50% { transform: translateY(-5px); }
-      100% { transform: translateY(0); }
+    /* Main panel */
+    .wrap{
+      position:absolute;
+      inset: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+      z-index:3;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 18px 14px;
+    }
+
+    .panel{
+      width:min(980px, 96vw);
+      height:min(620px, 86vh);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.05) 100%);
+      border: 1px solid var(--stroke);
+      box-shadow: 0 22px 70px rgba(0,0,0,0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      overflow:hidden;
+      display:grid;
+      grid-template-rows: 92px 1fr 86px 92px;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    /* Top “window” sign / restaurant vibe */
+    .sign{
+      position:relative;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+      overflow:hidden;
+    }
+    .sign::before{
+      content:"";
+      position:absolute;
+      inset:-40% -20%;
+      background:
+        repeating-linear-gradient(115deg,
+          rgba(255,255,255,0.12) 0px,
+          rgba(255,255,255,0.12) 10px,
+          rgba(255,255,255,0.00) 24px,
+          rgba(255,255,255,0.00) 44px);
+      transform: rotate(-4deg);
+      opacity:0.55;
+      filter: blur(0.2px);
+    }
+    .sign::after{
+      content:"COZY KITCHEN • OPEN LATE • RAINY NIGHT";
+      position:absolute;
+      left: 18px;
+      bottom: 12px;
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.72);
+      text-shadow: 0 2px 10px rgba(0,0,0,0.35);
+      opacity: calc(0.65 + 0.25*var(--warm));
+    }
+
+    /* Middle gameplay grid */
+    .mid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .card{
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(10,18,38,0.50);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.25);
+      overflow:hidden;
+      position:relative;
+      min-height: 0;
+    }
+
+    .order{
+      position:absolute;
+      left:12px;
+      top:12px;
+      z-index:5;
+      background: rgba(0,0,0,0.28);
+      border: 1px solid rgba(255,255,255,0.10);
+      padding: 10px 10px 9px 10px;
+      border-radius: 12px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    .order .label{
+      font-size: 11px;
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 4px;
+    }
+    .order .line{
+      font-weight: 750;
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
+    .order .sub{
+      font-size: 11px;
+      color: rgba(255,255,255,0.70);
+    }
+
+    /* Prep area */
+    .prep{
+      display:grid;
+      grid-template-rows: 1fr 1fr;
+      gap: 12px;
+      padding: 14px;
+      height:100%;
+    }
+
+    .ingredientBox{
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.05);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+    }
+    #ingredient{
+      font-size: 58px;
+      filter: drop-shadow(0 12px 18px rgba(0,0,0,0.35));
+      transform: translateY(-2px);
+    }
+
+    /* Pot + steam */
+    .potBox{
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      position:relative;
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      padding-bottom: 12px;
+    }
+    .pot{
+      width: 180px;
+      height: 90px;
+      border-radius: 18px 18px 26px 26px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: inset 0 8px 18px rgba(0,0,0,0.25);
+      position:relative;
+    }
+    .pot::before{
+      content:"";
+      position:absolute;
+      left: 18px;
+      right: 18px;
+      top: -14px;
+      height: 18px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .pot::after{
+      content:"simmer…";
+      position:absolute;
+      right: 12px;
+      bottom: 10px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      opacity: calc(0.35 + 0.45*var(--warm));
+    }
+
+    #steam{
+      position:absolute;
+      left:50%;
+      bottom: 90px;
+      width: 240px;
+      height: 160px;
+      transform: translateX(-50%);
+      pointer-events:none;
+      overflow: visible;
+      filter: blur(0.2px);
+      opacity: calc(0.45 + 0.35*var(--warm));
+    }
+
+    .steamPuff{
+      position:absolute;
+      left:50%;
+      bottom: 0;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.45), rgba(255,255,255,0.08) 65%, rgba(255,255,255,0) 70%);
+      border-radius: 999px;
+      transform: translateX(-50%);
+      animation: puff 1.8s ease-out forwards;
+      opacity: 0.9;
+      mix-blend-mode: screen;
+    }
+
+    @keyframes puff{
+      0%{ transform: translateX(-50%) translateY(0) scale(0.65); opacity:0.0; }
+      15%{ opacity:0.9; }
+      100%{ transform: translateX(calc(-50% + var(--dx))) translateY(-120px) scale(1.55); opacity:0.0; }
+    }
+
+    /* Chef area */
+    .chefArea{
+      padding: 14px;
+      height:100%;
+      display:grid;
+      grid-template-rows: 1fr auto;
+      gap: 12px;
+    }
+
+    .chefStage{
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      position:relative;
+      overflow:hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    /* If you upload a sprite, it shows. If not, you still see a fallback emoji chef. */
+    #chef{
+      width: 170px;
+      height: 170px;
+      image-rendering: pixelated;
+      background:
+        radial-gradient(100px 90px at 50% 55%, rgba(255,255,255,0.12), rgba(255,255,255,0));
+      border-radius: 22px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+    }
+    #chef img{
+      width: 140px;
+      height: 140px;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 18px 22px rgba(0,0,0,0.35));
+    }
+    #chef .fallback{
+      font-size: 72px;
+      opacity: 0.9;
+      filter: drop-shadow(0 18px 22px rgba(0,0,0,0.35));
+    }
+
+    .chopAnim{
+      animation: chop 220ms ease-in-out;
+    }
+    @keyframes chop{
+      0%{ transform: translateY(0) rotate(0deg) }
+      45%{ transform: translateY(-6px) rotate(-2deg) }
+      100%{ transform: translateY(0) rotate(0deg) }
+    }
+
+    /* Dialogue */
+    .dialogue{
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.26);
+      padding: 12px 12px;
+      display:flex;
+      gap: 10px;
+      align-items:flex-start;
+      min-height: 72px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    .name{
+      font-weight: 800;
+      color: var(--accent2);
+      min-width: 56px;
+    }
+    .line{
+      color: rgba(255,255,255,0.80);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    /* HUD row */
+    .hud{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      justify-content:space-between;
+      padding: 0 4px;
+    }
+    .pillRow{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .pill{
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.22);
+      padding: 8px 12px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.86);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      min-width: 120px;
+      justify-content:center;
+    }
+    .pill strong{
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+    }
+
+    /* Buttons row */
+    .controls{
+      display:grid;
+      grid-template-columns: 1fr 1fr 140px;
+      gap: 12px;
+      align-items:center;
+    }
+
+    button{
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.92);
+      border-radius: 14px;
+      padding: 14px 14px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      cursor:pointer;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.25);
+      transition: transform .08s ease, background .12s ease, border-color .12s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active{ transform: translateY(1px) scale(0.99) }
+    #chopBtn{
+      background: linear-gradient(180deg, rgba(242,196,107,0.95), rgba(242,196,107,0.78));
+      color: rgba(10,18,38,0.95);
+      border-color: rgba(255,255,255,0.0);
+    }
+    #newBtn{
+      background: rgba(255,255,255,0.08);
+    }
+    #soundBtn{
+      background: rgba(0,0,0,0.22);
+      font-weight: 750;
+    }
+
+    /* FX popups */
+    #sliceFx{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      z-index:6;
+    }
+    .fx{
+      position:absolute;
+      left: 50%;
+      top: 52%;
+      transform: translate(-50%,-50%);
+      background: rgba(0,0,0,0.32);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.92);
+      animation: float 650ms ease-out forwards;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    @keyframes float{
+      0%{ opacity:0; transform: translate(-50%,-30%) scale(0.95) }
+      15%{ opacity:1 }
+      100%{ opacity:0; transform: translate(-50%,-85%) scale(1.02) }
+    }
+
+    /* Small screens: stack */
+    @media (max-width: 820px){
+      .panel{
+        height:min(740px, 92vh);
+        grid-template-rows: 84px 1fr 96px 100px;
+      }
+      .mid{
+        grid-template-columns: 1fr;
+      }
+      .controls{
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+      }
+      #soundBtn{ grid-column: 1 / -1; }
     }
   </style>
 </head>
 <body>
+  <div id="scene">
+    <canvas id="rain"></canvas>
+    <div id="warmGlow"></div>
+    <div id="vignette"></div>
 
-<div class="rain"></div>
+    <div class="wrap">
+      <div class="panel">
+        <div class="sign"></div>
 
-<div class="kitchen">
-  <div class="title">🌧️ Cozy Kitchen</div>
-  <div>It’s raining outside. The soup is simmering.</div>
-  <div class="pot">🍲</div>
-</div>
+        <div class="mid">
+          <div class="card">
+            <div class="order">
+              <div class="label">Order</div>
+              <div class="line" id="orderLine">Tomato × 3</div>
+              <div class="sub" id="orderSub">Keep your rhythm.</div>
+            </div>
 
+            <div class="prep">
+              <div class="ingredientBox">
+                <div id="ingredient">🍅</div>
+              </div>
+
+              <div class="potBox">
+                <div id="steam"></div>
+                <div class="pot" aria-hidden="true"></div>
+              </div>
+            </div>
+
+            <div id="sliceFx"></div>
+          </div>
+
+          <div class="card">
+            <div class="chefArea">
+              <div class="chefStage">
+                <div id="chef" aria-label="Chef">
+                  <!-- Upload your sprite to /assets/chef.png and it will show -->
+                  <img id="chefImg" src="assets/chef.png" alt="Chef sprite" onerror="this.remove();document.getElementById('chef').insertAdjacentHTML('beforeend','<div class=\\'fallback\\'>👩‍🍳</div>');" />
+                </div>
+              </div>
+
+              <div class="dialogue">
+                <div class="name">Mara</div>
+                <div class="line" id="dialogueLine">“Rain makes the kitchen feel quieter.”</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud">
+          <div class="pillRow">
+            <div class="pill">🧡 Warmth: <strong id="warmth">0</strong></div>
+            <div class="pill">💰 Tips: <strong id="tips">0</strong></div>
+            <div class="pill">🔥 Streak: <strong id="streak">0</strong></div>
+          </div>
+          <div class="pillRow">
+            <div class="pill">🌙 Rainy Night</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="chopBtn">CHOP</button>
+          <button id="newBtn">New Ingredient</button>
+          <button id="soundBtn">🔇 Lo-fi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const scene = document.getElementById("scene");
+    const chef = document.getElementById("chef");
+    const ingEl = document.getElementById("ingredient");
+    const fx = document.getElementById("sliceFx");
+    const steam = document.getElementById("steam");
+
+    const warmthEl = document.getElementById("warmth");
+    const tipsEl = document.getElementById("tips");
+    const streakEl = document.getElementById("streak");
+    const orderLine = document.getElementById("orderLine");
+    const orderSub = document.getElementById("orderSub");
+    const dialogueLine = document.getElementById("dialogueLine");
+
+    const chopBtn = document.getElementById("chopBtn");
+    const newBtn = document.getElementById("newBtn");
+    const soundBtn = document.getElementById("soundBtn");
+
+    let warmth = 0, tips = 0, streak = 0;
+    let muted = true; // iOS autoplay rules; user taps to enable
+    let audioCtx = null;
+    let musicOn = false;
+    let timers = [];
+
+    /* ===== Rain canvas ===== */
+    const rainCanvas = document.getElementById("rain");
+    const rctx = rainCanvas.getContext("2d");
+    let drops = [];
+    function resizeRain(){
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      rainCanvas.width = Math.floor(window.innerWidth * dpr);
+      rainCanvas.height = Math.floor(window.innerHeight * dpr);
+      rainCanvas.style.width = window.innerWidth + "px";
+      rainCanvas.style.height = window.innerHeight + "px";
+      rctx.setTransform(dpr,0,0,dpr,0,0);
+
+      drops = Array.from({length: Math.floor(window.innerWidth / 6)}, () => ({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        l: 10 + Math.random()*18,
+        v: 6 + Math.random()*10,
+        a: 0.12 + Math.random()*0.18
+      }));
+    }
+    window.addEventListener("resize", resizeRain);
+    resizeRain();
+
+    function drawRain(){
+      rctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+      rctx.lineWidth = 1;
+      for (const d of drops){
+        rctx.strokeStyle = `rgba(200,220,255,${d.a})`;
+        rctx.beginPath();
+        rctx.moveTo(d.x, d.y);
+        rctx.lineTo(d.x - 6, d.y + d.l);
+        rctx.stroke();
+
+        d.y += d.v;
+        d.x -= 1.5;
+        if (d.y > window.innerHeight + 30){
+          d.y = -30;
+          d.x = Math.random() * window.innerWidth;
+        }
+        if (d.x < -40) d.x = window.innerWidth + 40;
+      }
+      requestAnimationFrame(drawRain);
+    }
+    drawRain();
+
+    /* ===== Cozy dialogue beats ===== */
+    const cozyLines = [
+      "“Rain makes the kitchen feel quieter.”",
+      "“That simmer… it’s kind of comforting.”",
+      "“You’re doing good. Don’t rush.”",
+      "“It smells like home in here.”",
+      "“Okay… that was clean.”"
+    ];
+    let li = 0;
+    function nextLine(){
+      li = (li+1) % cozyLines.length;
+      dialogueLine.textContent = cozyLines[li];
+    }
+
+    /* ===== Order system ===== */
+    const ingredients = ["🍅","🧅","🧄","🌿","🫑","🥕","🍄","🧀"];
+    const names = {"🍅":"Tomato","🧅":"Onion","🧄":"Garlic","🌿":"Herb","🫑":"Pepper","🥕":"Carrot","🍄":"Mushroom","🧀":"Cheese"};
+    let current = "🍅";
+    let remaining = 3;
+
+    function setHud(){
+      warmthEl.textContent = warmth;
+      tipsEl.textContent = tips;
+      streakEl.textContent = streak;
+
+      const w = Math.max(0, Math.min(1, warmth/100));
+      document.documentElement.style.setProperty("--warm", w.toFixed(3));
+    }
+
+    function setOrder(){
+      orderLine.textContent = `${names[current]} × ${remaining}`;
+      orderSub.textContent = remaining <= 1 ? "Last one. Make it nice." : "Keep your rhythm.";
+      ingEl.textContent = current;
+    }
+
+    function pop(text){
+      const p = document.createElement("div");
+      p.className = "fx";
+      p.textContent = text;
+      fx.appendChild(p);
+      setTimeout(()=>p.remove(), 650);
+    }
+
+    /* ===== Steam particles ===== */
+    function spawnSteam(){
+      const count = 1 + Math.floor(warmth/40); // 1..3
+      for(let i=0;i<count;i++){
+        const puff = document.createElement("div");
+        puff.className = "steamPuff";
+        puff.style.setProperty("--dx", (Math.random()*80 - 40) + "px");
+
+        const s = 14 + Math.random()*12;
+        puff.style.width = s+"px";
+        puff.style.height = s+"px";
+        puff.style.animationDuration = (1.3 + Math.random()*0.9) + "s";
+
+        steam.appendChild(puff);
+        setTimeout(()=>puff.remove(), 2000);
+      }
+    }
+
+    /* ===== Audio: lo-fi (simple but cozy) ===== */
+    function ensureAudio(){
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playClick(good=true){
+      if (muted || !audioCtx) return;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "triangle";
+      o.frequency.value = good ? 740 : 220;
+      g.gain.value = 0.0001;
+      o.connect(g); g.connect(audioCtx.destination);
+      const t = audioCtx.currentTime;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.08, t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
+      o.start(t); o.stop(t+0.13);
+    }
+
+    function startLofi(){
+      ensureAudio();
+      if (musicOn) return;
+      musicOn = true;
+
+      const bpm = 74;
+      const beatMs = (60_000 / bpm) / 2;
+
+      const master = audioCtx.createGain();
+      master.gain.value = 0.35;
+      master.connect(audioCtx.destination);
+
+      const lp = audioCtx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 1400;
+      lp.connect(master);
+
+      const noise = audioCtx.createBufferSource();
+      const bufferSize = 2 * audioCtx.sampleRate;
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const out = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) out[i] = (Math.random() * 2 - 1) * 0.25;
+      noise.buffer = noiseBuffer;
+      noise.loop = true;
+
+      const rainGain = audioCtx.createGain();
+      rainGain.gain.value = 0.05;
+      const rainLP = audioCtx.createBiquadFilter();
+      rainLP.type = "lowpass";
+      rainLP.frequency.value = 900;
+
+      noise.connect(rainLP);
+      rainLP.connect(rainGain);
+      rainGain.connect(lp);
+      noise.start();
+
+      const simmerGain = audioCtx.createGain();
+      simmerGain.gain.value = 0.06;
+      simmerGain.connect(lp);
+
+      function bubble(){
+        if (!musicOn) return;
+        const n = audioCtx.createBufferSource();
+        n.buffer = noiseBuffer;
+        const g = audioCtx.createGain();
+        g.gain.value = 0.0001;
+
+        const f = audioCtx.createBiquadFilter();
+        f.type = "bandpass";
+        f.frequency.value = 220 + Math.random()*140;
+        f.Q.value = 8;
+
+        n.connect(f); f.connect(g); g.connect(simmerGain);
+
+        const t = audioCtx.currentTime;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.12, t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+0.14);
+
+        n.start(t);
+        n.stop(t+0.16);
+
+        timers.push(setTimeout(bubble, 450 + Math.random()*650));
+      }
+      bubble();
+
+      const chordProg = [
+        [261.63, 329.63, 392.00],
+        [233.08, 293.66, 349.23],
+        [220.00, 277.18, 329.63],
+        [196.00, 246.94, 293.66]
+      ];
+      let step = 0;
+
+      function playChord(freqs){
+        const t = audioCtx.currentTime;
+        freqs.forEach((freq, i) => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = "triangle";
+          o.frequency.value = freq * (i===0 ? 0.5 : 1);
+          g.gain.value = 0.0001;
+          o.connect(g); g.connect(lp);
+
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.07, t+0.05);
+          g.gain.exponentialRampToValueAtTime(0.0001, t+1.8);
+
+          o.start(t);
+          o.stop(t+2.0);
+        });
+      }
+
+      function kick(){
+        const t = audioCtx.currentTime;
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(110, t);
+        o.frequency.exponentialRampToValueAtTime(45, t+0.08);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.18, t+0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
+        o.connect(g); g.connect(lp);
+        o.start(t); o.stop(t+0.13);
+      }
+      function snare(){
+        const t = audioCtx.currentTime;
+        const n = audioCtx.createBufferSource();
+        n.buffer = noiseBuffer;
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = "highpass";
+        hp.frequency.value = 1200;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.10, t+0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+0.10);
+        n.connect(hp); hp.connect(g); g.connect(lp);
+        n.start(t); n.stop(t+0.11);
+      }
+      function hat(){
+        const t = audioCtx.currentTime;
+        const n = audioCtx.createBufferSource();
+        n.buffer = noiseBuffer;
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = "highpass";
+        hp.frequency.value = 5000;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.045, t+0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+0.03);
+        n.connect(hp); hp.connect(g); g.connect(lp);
+        n.start(t); n.stop(t+0.04);
+      }
+
+      let tick = 0;
+      function scheduler(){
+        if (!musicOn) return;
+        if (tick % 16 === 0){
+          playChord(chordProg[step % chordProg.length]);
+          step++;
+        }
+        if (tick % 8 === 0) kick();
+        if (tick % 8 === 4) snare();
+        if (tick % 2 === 0) hat();
+        tick++;
+        timers.push(setTimeout(scheduler, beatMs));
+      }
+      scheduler();
+
+      startLofi._noise = noise;
+    }
+
+    function stopLofi(){
+      musicOn = false;
+      timers.forEach(clearTimeout);
+      timers = [];
+      try { startLofi._noise?.stop(); } catch(e){}
+    }
+
+    /* ===== Gameplay ===== */
+    function newIngredient(forceNewOrder=false){
+      if (forceNewOrder){
+        current = ingredients[Math.floor(Math.random()*ingredients.length)];
+        remaining = 2 + Math.floor(Math.random()*4);
+        streak = 0;
+        setHud();
+        setOrder();
+        return;
+      }
+      current = ingredients[Math.floor(Math.random()*ingredients.length)];
+      setOrder();
+    }
+
+    function chop(){
+      chef.classList.remove("chopAnim");
+      void chef.offsetWidth;
+      chef.classList.add("chopAnim");
+
+      spawnSteam();
+
+      remaining -= 1;
+      streak += 1;
+
+      const gainWarmth = 3 + Math.min(10, Math.floor(streak/2));
+      warmth = Math.min(100, warmth + gainWarmth);
+      tips += 1 + Math.min(7, Math.floor(streak/3));
+
+      pop(`+${gainWarmth} warmth`);
+      playClick(true);
+      setHud();
+
+      if (remaining <= 0){
+        pop("ORDER UP!");
+        tips += 10;
+        warmth = Math.min(100, warmth + 8);
+        nextLine();
+        playClick(true);
+        newIngredient(true);
+      } else {
+        if (streak % 4 === 0) nextLine();
+        setOrder();
+      }
+    }
+
+    soundBtn.addEventListener("click", async () => {
+      ensureAudio();
+      if (audioCtx.state === "suspended") await audioCtx.resume();
+
+      muted = !muted;
+      if (muted){
+        soundBtn.textContent = "🔇 Lo-fi";
+        stopLofi();
+      } else {
+        soundBtn.textContent = "🔊 Lo-fi";
+        startLofi();
+      }
+    });
+
+    chopBtn.addEventListener("click", async () => {
+      if (audioCtx && audioCtx.state === "suspended") await audioCtx.resume();
+      chop();
+    });
+
+    newBtn.addEventListener("click", () => newIngredient(false));
+
+    setInterval(() => { if (warmth > 0) spawnSteam(); }, 900);
+
+    setHud();
+    setOrder();
+  </script>
 </body>
 </html>
